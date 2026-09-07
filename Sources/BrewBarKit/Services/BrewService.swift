@@ -20,14 +20,14 @@ public final class BrewService: ObservableObject {
             throw BrewBarError.invalidFormulaName(name)
         }
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name).build()
+        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name).buildCommand()
         _ = try await processManager.execute(command: cmd)
         try await refreshInstalledPackages()
     }
 
     public func upgradeFormula(_ name: String) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name).build()
+        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name).buildCommand()
         _ = try await processManager.execute(command: cmd)
         try await refreshInstalledPackages()
         try await checkForUpdates()
@@ -35,7 +35,7 @@ public final class BrewService: ObservableObject {
 
     public func upgradeAll() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade().build()
+        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade().buildCommand()
         _ = try await processManager.execute(command: cmd)
         try await refreshInstalledPackages()
         try await checkForUpdates()
@@ -43,7 +43,7 @@ public final class BrewService: ObservableObject {
 
     public func uninstallFormula(_ name: String) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name).build()
+        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name).buildCommand()
         _ = try await processManager.execute(command: cmd)
         try await refreshInstalledPackages()
     }
@@ -53,7 +53,7 @@ public final class BrewService: ObservableObject {
         defer { isLoading = false }
 
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).listInstalledInfo().build()
+        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).listInstalledInfo().buildCommand()
 
         do {
             let output = try await processManager.execute(command: cmd)
@@ -74,7 +74,7 @@ public final class BrewService: ObservableObject {
 
     public func checkForUpdates() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true).build()
+        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true).buildCommand()
 
         do {
             let output = try await processManager.execute(command: cmd)

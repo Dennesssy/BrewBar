@@ -7,18 +7,39 @@ public actor ProcessManager {
 
     public typealias OutputHandler = @Sendable (String) -> Void
 
+    /// Executes a command directly without a shell, preventing shell injection.
+    ///
+    /// - Parameters:
+    ///   - command: The `BrewCommand` containing executable path and arguments.
+    ///   - timeout: Maximum time to wait for command completion.
+    ///   - outputHandler: Optional callback for streaming stdout output.
+    /// - Returns: The trimmed stdout output on success.
+    /// - Throws: `BrewBarError` on failure, timeout, or if executable doesn't exist.
     public func execute(
-        command: String,
+        command: BrewCommand,
         timeout: TimeInterval = 300,
         outputHandler: OutputHandler? = nil
     ) async throws -> String {
+        // Validate executable exists before attempting to run
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: command.executablePath) else {
+            throw BrewBarError.homebrewNotInstalled
+        }
+        guard fileManager.isExecutableFile(atPath: command.executablePath) else {
+            throw BrewBarError.commandFailed(
+                command: command.displayString,
+                error: "File exists but is not executable: \(command.executablePath)"
+            )
+        }
+
         isRunning = true
         defer { isRunning = false }
 
         return try await withCheckedThrowingContinuation { continuation in
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = ["-c", command]
+            // Launch executable directly - no shell involved
+            process.executableURL = URL(fileURLWithPath: command.executablePath)
+            process.arguments = command.arguments
 
             let outputPipe = Pipe()
             let errorPipe = Pipe()
@@ -63,6 +84,8 @@ public actor ProcessManager {
 
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: timeoutItem)
 
+            let displayCommand = command.displayString
+
             process.terminationHandler = { proc in
                 timeoutItem.cancel()
 
@@ -97,11 +120,11 @@ public actor ProcessManager {
 
                 // Step 4: Resume continuation with final result or error
                 if wasTimeout {
-                    continuation.resume(throwing: BrewBarError.commandTimeout(command))
+                    continuation.resume(throwing: BrewBarError.commandTimeout(displayCommand))
                 } else if proc.terminationStatus != 0 {
                     let errMessage = finalError.isEmpty ? finalOutput : finalError
                     continuation.resume(throwing: BrewBarError.commandFailed(
-                        command: command,
+                        command: displayCommand,
                         error: errMessage.trimmingCharacters(in: .whitespacesAndNewlines)
                     ))
                 } else {
@@ -115,8 +138,34 @@ public actor ProcessManager {
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil
                 timeoutItem.cancel()
-                continuation.resume(throwing: BrewBarError.commandFailed(command: command, error: error.localizedDescription))
+                continuation.resume(throwing: BrewBarError.commandFailed(
+                    command: displayCommand,
+                    error: error.localizedDescription
+                ))
             }
         }
+    }
+
+    /// Legacy execute method that wraps a shell command string.
+    /// This method is ONLY safe for hardcoded shell commands in tests.
+    /// DO NOT use this with user-provided or interpolated strings.
+    ///
+    /// - Parameters:
+    ///   - shellCommand: A shell command string to execute via /bin/bash -c.
+    ///   - timeout: Maximum time to wait for command completion.
+    ///   - outputHandler: Optional callback for streaming stdout output.
+    /// - Returns: The trimmed stdout output on success.
+    /// - Throws: `BrewBarError` on failure or timeout.
+    @available(*, deprecated, message: "Use execute(command:) with BrewCommand for production code")
+    public func executeShellCommand(
+        _ shellCommand: String,
+        timeout: TimeInterval = 300,
+        outputHandler: OutputHandler? = nil
+    ) async throws -> String {
+        let command = BrewCommand(
+            executablePath: "/bin/bash",
+            arguments: ["-c", shellCommand]
+        )
+        return try await execute(command: command, timeout: timeout, outputHandler: outputHandler)
     }
 }

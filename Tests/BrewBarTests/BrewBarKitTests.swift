@@ -5,14 +5,26 @@ final class BrewBarKitTests: XCTestCase {
 
     func testBrewCommandBuilder() {
         let builder = BrewCommandBuilder(brewPath: "/usr/local/bin/brew")
-        let installCmd = builder.install("python").build()
-        XCTAssertEqual(installCmd, "/usr/local/bin/brew install python")
 
-        let listCmd = builder.listInstalledInfo().build()
-        XCTAssertEqual(listCmd, "/usr/local/bin/brew info --installed --json=v2")
+        // Test install command
+        let installCmd = builder.install("python").buildCommand()
+        XCTAssertEqual(installCmd.executablePath, "/usr/local/bin/brew")
+        XCTAssertEqual(installCmd.arguments, ["install", "python"])
+        XCTAssertEqual(installCmd.displayString, "/usr/local/bin/brew install python")
 
-        let outdatedCmd = builder.outdated(json: true).build()
-        XCTAssertEqual(outdatedCmd, "/usr/local/bin/brew outdated --json=v2")
+        // Test list installed info command
+        let listCmd = builder.listInstalledInfo().buildCommand()
+        XCTAssertEqual(listCmd.executablePath, "/usr/local/bin/brew")
+        XCTAssertEqual(listCmd.arguments, ["info", "--installed", "--json=v2"])
+
+        // Test outdated command
+        let outdatedCmd = builder.outdated(json: true).buildCommand()
+        XCTAssertEqual(outdatedCmd.executablePath, "/usr/local/bin/brew")
+        XCTAssertEqual(outdatedCmd.arguments, ["outdated", "--json=v2"])
+
+        // Test legacy build() method still works for display
+        let legacyString = builder.install("python").build()
+        XCTAssertEqual(legacyString, "/usr/local/bin/brew install python")
     }
 
     func testOutputParser() throws {
@@ -236,8 +248,9 @@ final class BrewBarKitTests: XCTestCase {
 
         // Generate a known amount of output to verify full capture
         let lineCount = 100
-        let result = try await processManager.execute(
-            command: "for i in $(seq 1 \(lineCount)); do echo \"line $i\"; done",
+        // Note: Using deprecated shell method for test that requires shell loop constructs
+        let result = try await processManager.executeShellCommand(
+            "for i in $(seq 1 \(lineCount)); do echo \"line $i\"; done",
             timeout: 30
         )
 
@@ -253,8 +266,9 @@ final class BrewBarKitTests: XCTestCase {
         // Command that outputs to stderr and exits with non-zero
         let lineCount = 50
         do {
-            _ = try await processManager.execute(
-                command: "for i in $(seq 1 \(lineCount)); do echo \"error $i\" >&2; done; exit 1",
+            // Note: Using deprecated shell method for test that requires shell loop constructs
+            _ = try await processManager.executeShellCommand(
+                "for i in $(seq 1 \(lineCount)); do echo \"error $i\" >&2; done; exit 1",
                 timeout: 30
             )
             XCTFail("Command should have failed")
@@ -277,8 +291,9 @@ final class BrewBarKitTests: XCTestCase {
         var streamedOutput = ""
         let streamLock = NSLock()
 
-        let result = try await processManager.execute(
-            command: "echo 'first'; sleep 0.1; echo 'second'; sleep 0.1; echo 'third'",
+        // Note: Using deprecated shell method for test that requires shell constructs
+        let result = try await processManager.executeShellCommand(
+            "echo 'first'; sleep 0.1; echo 'second'; sleep 0.1; echo 'third'",
             timeout: 30,
             outputHandler: { chunk in
                 streamLock.lock()
@@ -302,8 +317,9 @@ final class BrewBarKitTests: XCTestCase {
         let processManager = ProcessManager()
 
         do {
-            _ = try await processManager.execute(
-                command: "sleep 10",
+            // Note: Using deprecated shell method for simple shell command
+            _ = try await processManager.executeShellCommand(
+                "sleep 10",
                 timeout: 0.5
             )
             XCTFail("Command should have timed out")
@@ -321,10 +337,9 @@ final class BrewBarKitTests: XCTestCase {
     func testProcessManagerSuccessfulCommand() async throws {
         let processManager = ProcessManager()
 
-        let result = try await processManager.execute(
-            command: "echo 'hello world'",
-            timeout: 30
-        )
+        // Test direct execution with BrewCommand
+        let command = BrewCommand(executablePath: "/bin/echo", arguments: ["hello", "world"])
+        let result = try await processManager.execute(command: command, timeout: 30)
 
         XCTAssertEqual(result, "hello world")
     }
@@ -333,8 +348,9 @@ final class BrewBarKitTests: XCTestCase {
         let processManager = ProcessManager()
 
         do {
-            _ = try await processManager.execute(
-                command: "exit 42",
+            // Note: Using deprecated shell method for test that requires shell exit code
+            _ = try await processManager.executeShellCommand(
+                "exit 42",
                 timeout: 30
             )
             XCTFail("Command should have failed")
@@ -347,6 +363,113 @@ final class BrewBarKitTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }
+    }
+
+    func testProcessManagerDirectExecution() async throws {
+        let processManager = ProcessManager()
+
+        // Test that direct execution works correctly
+        let command = BrewCommand(executablePath: "/bin/ls", arguments: ["-la", "/tmp"])
+        let result = try await processManager.execute(command: command, timeout: 30)
+
+        XCTAssertTrue(result.contains("total"), "ls output should contain 'total'")
+    }
+
+    func testProcessManagerRejectsNonExistentExecutable() async {
+        let processManager = ProcessManager()
+
+        let command = BrewCommand(executablePath: "/nonexistent/path/to/brew", arguments: ["list"])
+
+        do {
+            _ = try await processManager.execute(command: command, timeout: 5)
+            XCTFail("Should have thrown for non-existent executable")
+        } catch let error as BrewBarError {
+            if case .homebrewNotInstalled = error {
+                // Expected behavior - non-existent executable reports homebrewNotInstalled
+            } else {
+                XCTFail("Expected homebrewNotInstalled error, got \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    // MARK: - Shell Injection Prevention Tests
+
+    func testBrewCommandBuilderPreventsPathInjection() {
+        // Test that even if a malicious brewPath is set, it won't be executed via shell
+        let maliciousPath = "/tmp/brew; rm -rf ~"
+        let builder = BrewCommandBuilder(brewPath: maliciousPath)
+        let cmd = builder.install("python").buildCommand()
+
+        // The path should be stored literally, not interpreted
+        XCTAssertEqual(cmd.executablePath, maliciousPath)
+        XCTAssertEqual(cmd.arguments, ["install", "python"])
+
+        // When executed, this would fail because the literal path doesn't exist,
+        // NOT execute the injected command
+    }
+
+    func testBrewCommandBuilderSanitizesFormulaName() {
+        let builder = BrewCommandBuilder(brewPath: "/usr/local/bin/brew")
+
+        // Test that shell metacharacters are stripped from formula names
+        let maliciousFormula = "python; rm -rf ~"
+        let cmd = builder.install(maliciousFormula).buildCommand()
+
+        // The formula name should have dangerous characters removed
+        XCTAssertEqual(cmd.arguments, ["install", "pythonrm-rf"])
+        XCTAssertFalse(cmd.arguments.contains(";"), "Semicolons should be stripped")
+        XCTAssertFalse(cmd.arguments.contains("~"), "Tilde should be stripped")
+    }
+
+    func testBrewCommandBuilderSanitizesSpecialCharacters() {
+        let builder = BrewCommandBuilder(brewPath: "/usr/local/bin/brew")
+
+        // Test various injection attempts
+        let testCases = [
+            ("$(whoami)", "whoami"),           // Command substitution
+            ("`whoami`", "whoami"),            // Backtick substitution
+            ("formula && rm -rf /", "formularm-rf"),  // Command chaining
+            ("formula || rm -rf /", "formularm-rf"),  // Command chaining
+            ("formula | cat /etc/passwd", "formulacatetcpasswd"),  // Pipe
+            ("formula > /tmp/malicious", "formulatmpmalicious"),   // Redirect
+            ("formula\nrm -rf /", "formularm-rf/"),                // Newline injection
+        ]
+
+        for (input, expected) in testCases {
+            let cmd = builder.install(input).buildCommand()
+            XCTAssertEqual(cmd.arguments[1], expected, "Input '\(input)' should be sanitized to '\(expected)'")
+        }
+    }
+
+    func testProcessManagerDoesNotInvokeShellForBrewCommands() async throws {
+        let processManager = ProcessManager()
+
+        // Create a command with shell metacharacters in the arguments
+        // If shell interpretation were happening, this would fail differently
+        let command = BrewCommand(
+            executablePath: "/bin/echo",
+            arguments: ["test; echo INJECTED", "$(whoami)", "`whoami`"]
+        )
+
+        let result = try await processManager.execute(command: command, timeout: 5)
+
+        // If executed via shell, we'd see "INJECTED" or the username
+        // With direct execution, we see the literal strings
+        XCTAssertTrue(result.contains("test; echo INJECTED"), "Shell metacharacters should be treated literally")
+        XCTAssertTrue(result.contains("$(whoami)"), "Command substitution should be treated literally")
+        XCTAssertTrue(result.contains("`whoami`"), "Backtick substitution should be treated literally")
+        XCTAssertFalse(result.contains("INJECTED\n"), "Shell injection should not execute")
+    }
+
+    func testBrewCommandEquality() {
+        let cmd1 = BrewCommand(executablePath: "/usr/local/bin/brew", arguments: ["install", "python"])
+        let cmd2 = BrewCommand(executablePath: "/usr/local/bin/brew", arguments: ["install", "python"])
+        let cmd3 = BrewCommand(executablePath: "/opt/homebrew/bin/brew", arguments: ["install", "python"])
+
+        XCTAssertEqual(cmd1, cmd2)
+        XCTAssertNotEqual(cmd1, cmd3)
     }
 
     // MARK: - HomebrewPath Tests
@@ -376,8 +499,8 @@ final class BrewBarKitTests: XCTestCase {
 
     func testBrewCommandBuilderDefaultPath() {
         let builder = BrewCommandBuilder()
-        let cmd = builder.install("test").build()
-        XCTAssertTrue(cmd.hasPrefix(HomebrewPath.defaultBrewExecutable),
-                      "BrewCommandBuilder should default to architecture-appropriate Homebrew path")
+        let cmd = builder.install("test").buildCommand()
+        XCTAssertEqual(cmd.executablePath, HomebrewPath.defaultBrewExecutable,
+                       "BrewCommandBuilder should default to architecture-appropriate Homebrew path")
     }
 }
