@@ -112,6 +112,7 @@ public final class BrewService: ObservableObject {
             }
 
             self.availableUpdates = updates
+            self.lastError = nil
         } catch {
             let handledError = errorHandler.handle(error)
             self.lastError = handledError
