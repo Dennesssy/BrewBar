@@ -348,4 +348,36 @@ final class BrewBarKitTests: XCTestCase {
             XCTFail("Unexpected error type: \(error)")
         }
     }
+
+    // MARK: - HomebrewPath Tests
+
+    func testHomebrewPathDefaultIsArchitectureSpecific() {
+        // On Apple Silicon, default should be /opt/homebrew/bin/brew
+        // On Intel, default should be /usr/local/bin/brew
+        #if arch(arm64)
+        XCTAssertEqual(HomebrewPath.defaultBrewExecutable, "/opt/homebrew/bin/brew",
+                       "Apple Silicon should default to /opt/homebrew/bin/brew")
+        #else
+        XCTAssertEqual(HomebrewPath.defaultBrewExecutable, "/usr/local/bin/brew",
+                       "Intel should default to /usr/local/bin/brew")
+        #endif
+    }
+
+    func testHomebrewPathConstants() {
+        XCTAssertEqual(HomebrewPath.appleSiliconBrewPath, "/opt/homebrew/bin/brew")
+        XCTAssertEqual(HomebrewPath.intelBrewPath, "/usr/local/bin/brew")
+    }
+
+    func testUserPreferencesDefaultHomebrewPrefix() {
+        let prefs = UserPreferences()
+        XCTAssertEqual(prefs.homebrewPrefix, HomebrewPath.defaultBrewExecutable,
+                       "UserPreferences should default to architecture-appropriate Homebrew path")
+    }
+
+    func testBrewCommandBuilderDefaultPath() {
+        let builder = BrewCommandBuilder()
+        let cmd = builder.install("test").build()
+        XCTAssertTrue(cmd.hasPrefix(HomebrewPath.defaultBrewExecutable),
+                      "BrewCommandBuilder should default to architecture-appropriate Homebrew path")
+    }
 }
