@@ -102,7 +102,7 @@ public final class UpdatesViewModel: ObservableObject {
     }
 
     public func updateItem(_ item: FormulaItem) async {
-        try? await brewService.upgradeFormula(item.name)
+        try? await brewService.upgradeFormula(item.id)
         await checkForUpdates()
     }
 }
