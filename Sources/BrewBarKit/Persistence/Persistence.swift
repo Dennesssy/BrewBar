@@ -106,15 +106,26 @@ public actor CacheManager {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
+    /// Converts a cache key to a filename-safe string using URL-safe Base64 encoding.
+    /// This is a deterministic one-to-one encoding that prevents key collisions.
+    private func filenameForKey(_ key: String) -> String {
+        let keyData = Data(key.utf8)
+        // URL-safe Base64: replaces + with -, / with _, and removes padding =
+        return keyData.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
     public func cacheData(_ data: Data, forKey key: String) {
-        let sanitizedKey = key.replacingOccurrences(of: "/", with: "_")
-        let fileURL = cacheDirectory.appendingPathComponent(sanitizedKey)
+        let filename = filenameForKey(key)
+        let fileURL = cacheDirectory.appendingPathComponent(filename)
         try? data.write(to: fileURL)
     }
 
     public func cachedData(forKey key: String) -> Data? {
-        let sanitizedKey = key.replacingOccurrences(of: "/", with: "_")
-        let fileURL = cacheDirectory.appendingPathComponent(sanitizedKey)
+        let filename = filenameForKey(key)
+        let fileURL = cacheDirectory.appendingPathComponent(filename)
         return try? Data(contentsOf: fileURL)
     }
 

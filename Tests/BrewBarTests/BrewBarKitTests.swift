@@ -151,4 +151,81 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertNotNil(pythonPackage)
         XCTAssertFalse(pythonPackage!.updateAvailable, "python@3.11 should have updateAvailable = false")
     }
+
+    // MARK: - CacheManager Tests
+
+    func testCacheManagerDistinguishesSlashFromUnderscore() async {
+        let cacheManager = CacheManager()
+
+        // Clear any existing cache
+        await cacheManager.clearAllCache()
+
+        // Store data with keys that would collide under the old lossy encoding
+        let dataWithSlash = "data for formula/foo".data(using: .utf8)!
+        let dataWithUnderscore = "data for formula_foo".data(using: .utf8)!
+
+        await cacheManager.cacheData(dataWithSlash, forKey: "formula/foo")
+        await cacheManager.cacheData(dataWithUnderscore, forKey: "formula_foo")
+
+        // Retrieve and verify they remain distinct
+        let retrievedSlash = await cacheManager.cachedData(forKey: "formula/foo")
+        let retrievedUnderscore = await cacheManager.cachedData(forKey: "formula_foo")
+
+        XCTAssertNotNil(retrievedSlash, "Data for 'formula/foo' should be retrievable")
+        XCTAssertNotNil(retrievedUnderscore, "Data for 'formula_foo' should be retrievable")
+
+        XCTAssertEqual(retrievedSlash, dataWithSlash, "Data for 'formula/foo' should match what was stored")
+        XCTAssertEqual(retrievedUnderscore, dataWithUnderscore, "Data for 'formula_foo' should match what was stored")
+
+        // Verify the values are different (not colliding)
+        XCTAssertNotEqual(retrievedSlash, retrievedUnderscore, "Keys 'formula/foo' and 'formula_foo' must produce distinct cache entries")
+    }
+
+    func testCacheManagerRoundTrip() async {
+        let cacheManager = CacheManager()
+
+        await cacheManager.clearAllCache()
+
+        let testKeys = [
+            "simple",
+            "with/slash",
+            "with_underscore",
+            "multiple/slashes/here",
+            "mixed/slash_and_underscore",
+            "cask/homebrew/cask/visual-studio-code",
+            "formula_info"
+        ]
+
+        // Store data for each key
+        for key in testKeys {
+            let data = "value for \(key)".data(using: .utf8)!
+            await cacheManager.cacheData(data, forKey: key)
+        }
+
+        // Verify each key retrieves its correct value
+        for key in testKeys {
+            let expectedData = "value for \(key)".data(using: .utf8)!
+            let retrievedData = await cacheManager.cachedData(forKey: key)
+
+            XCTAssertNotNil(retrievedData, "Should retrieve data for key '\(key)'")
+            XCTAssertEqual(retrievedData, expectedData, "Retrieved data should match for key '\(key)'")
+        }
+    }
+
+    func testCacheManagerClearAllCache() async {
+        let cacheManager = CacheManager()
+
+        // Store some data
+        let data = "test data".data(using: .utf8)!
+        await cacheManager.cacheData(data, forKey: "test/key")
+
+        // Verify it was stored
+        let beforeClear = await cacheManager.cachedData(forKey: "test/key")
+        XCTAssertNotNil(beforeClear)
+
+        // Clear and verify it's gone
+        await cacheManager.clearAllCache()
+        let afterClear = await cacheManager.cachedData(forKey: "test/key")
+        XCTAssertNil(afterClear, "Cache should be empty after clearAllCache()")
+    }
 }
