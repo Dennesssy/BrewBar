@@ -91,4 +91,64 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertFalse(editorResults.isEmpty)
         XCTAssertEqual(editorResults.first?.id, "visual-studio-code")
     }
+
+    func testUpdateAvailabilityReconciliation() {
+        // Simulates the reconciliation logic in BrewService.checkForUpdates()
+        let installedPackages = [
+            FormulaItem(id: "git", name: "git", description: "Distributed revision control system", currentVersion: "2.42.0", type: .formula),
+            FormulaItem(id: "node", name: "node", description: "Platform built on V8", currentVersion: "20.0.0", type: .formula),
+            FormulaItem(id: "python@3.11", name: "python@3.11", description: "Interpreted language", currentVersion: "3.11.8", type: .formula),
+            FormulaItem(id: "visual-studio-code", name: "visual-studio-code", description: "Code editor", currentVersion: "1.85.0", type: .cask)
+        ]
+
+        // Only git and visual-studio-code have updates available
+        let availableUpdates = [
+            FormulaItem(id: "git", name: "git", description: "Distributed revision control system", currentVersion: "2.42.0", latestVersion: "2.43.0", type: .formula, updateAvailable: true),
+            FormulaItem(id: "visual-studio-code", name: "visual-studio-code", description: "Code editor", currentVersion: "1.85.0", latestVersion: "1.86.0", type: .cask, updateAvailable: true)
+        ]
+
+        // Reconcile update availability into installed packages (mirroring BrewService logic)
+        let updateIds = Set(availableUpdates.map { $0.id })
+        let reconciledPackages = installedPackages.map { item in
+            let hasUpdate = updateIds.contains(item.id)
+            return FormulaItem(
+                id: item.id,
+                name: item.name,
+                fullTitle: item.fullTitle,
+                description: item.description,
+                currentVersion: item.currentVersion,
+                latestVersion: item.latestVersion,
+                type: item.type,
+                homepage: item.homepage,
+                repository: item.repository,
+                license: item.license,
+                sizeInBytes: item.sizeInBytes,
+                installedDate: item.installedDate,
+                lastChecked: item.lastChecked,
+                updateAvailable: hasUpdate,
+                isPinned: item.isPinned,
+                isAutoUpdateEnabled: item.isAutoUpdateEnabled,
+                dependencies: item.dependencies,
+                versions: item.versions
+            )
+        }
+
+        // Verify packages with updates are marked correctly
+        let gitPackage = reconciledPackages.first { $0.id == "git" }
+        XCTAssertNotNil(gitPackage)
+        XCTAssertTrue(gitPackage!.updateAvailable, "git should have updateAvailable = true")
+
+        let vscodePackage = reconciledPackages.first { $0.id == "visual-studio-code" }
+        XCTAssertNotNil(vscodePackage)
+        XCTAssertTrue(vscodePackage!.updateAvailable, "visual-studio-code should have updateAvailable = true")
+
+        // Verify packages without updates are marked correctly
+        let nodePackage = reconciledPackages.first { $0.id == "node" }
+        XCTAssertNotNil(nodePackage)
+        XCTAssertFalse(nodePackage!.updateAvailable, "node should have updateAvailable = false")
+
+        let pythonPackage = reconciledPackages.first { $0.id == "python@3.11" }
+        XCTAssertNotNil(pythonPackage)
+        XCTAssertFalse(pythonPackage!.updateAvailable, "python@3.11 should have updateAvailable = false")
+    }
 }

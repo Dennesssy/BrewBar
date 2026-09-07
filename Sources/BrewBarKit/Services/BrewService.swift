@@ -112,6 +112,32 @@ public final class BrewService: ObservableObject {
             }
 
             self.availableUpdates = updates
+
+            // Reconcile update availability into installedPackages
+            let updateIds = Set(updates.map { $0.id })
+            self.installedPackages = self.installedPackages.map { item in
+                let hasUpdate = updateIds.contains(item.id)
+                return FormulaItem(
+                    id: item.id,
+                    name: item.name,
+                    fullTitle: item.fullTitle,
+                    description: item.description,
+                    currentVersion: item.currentVersion,
+                    latestVersion: item.latestVersion,
+                    type: item.type,
+                    homepage: item.homepage,
+                    repository: item.repository,
+                    license: item.license,
+                    sizeInBytes: item.sizeInBytes,
+                    installedDate: item.installedDate,
+                    lastChecked: item.lastChecked,
+                    updateAvailable: hasUpdate,
+                    isPinned: item.isPinned,
+                    isAutoUpdateEnabled: item.isAutoUpdateEnabled,
+                    dependencies: item.dependencies,
+                    versions: item.versions
+                )
+            }
         } catch {
             let handledError = errorHandler.handle(error)
             self.lastError = handledError
