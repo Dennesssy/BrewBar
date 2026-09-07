@@ -99,6 +99,7 @@ public actor CacheManager {
 
     private let fileManager = FileManager.default
     private let cacheDirectory: URL
+    private let userDefaults = UserDefaults.standard
 
     public init() {
         let paths = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
@@ -106,16 +107,39 @@ public actor CacheManager {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
-    public func cacheData(_ data: Data, forKey key: String) {
-        let sanitizedKey = key.replacingOccurrences(of: "/", with: "_")
-        let fileURL = cacheDirectory.appendingPathComponent(sanitizedKey)
-        try? data.write(to: fileURL)
+    private func sanitizeKey(_ key: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
+        return String(key.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" })
+    }
+
+    public func cacheData(_ data: Data, forKey key: String, ttl: TimeInterval = 3600) {
+        let sanitized = sanitizeKey(key)
+        let fileURL = cacheDirectory.appendingPathComponent(sanitized)
+        try? data.write(to: fileURL, options: .atomic)
+
+        let expirationDate = Date().addingTimeInterval(ttl)
+        userDefaults.set(expirationDate, forKey: "cache_exp_\(sanitized)")
     }
 
     public func cachedData(forKey key: String) -> Data? {
-        let sanitizedKey = key.replacingOccurrences(of: "/", with: "_")
-        let fileURL = cacheDirectory.appendingPathComponent(sanitizedKey)
+        let sanitized = sanitizeKey(key)
+
+        if let expiration = userDefaults.object(forKey: "cache_exp_\(sanitized)") as? Date {
+            if Date() > expiration {
+                clearCache(forKey: key)
+                return nil
+            }
+        }
+
+        let fileURL = cacheDirectory.appendingPathComponent(sanitized)
         return try? Data(contentsOf: fileURL)
+    }
+
+    public func clearCache(forKey key: String) {
+        let sanitized = sanitizeKey(key)
+        let fileURL = cacheDirectory.appendingPathComponent(sanitized)
+        try? fileManager.removeItem(at: fileURL)
+        userDefaults.removeObject(forKey: "cache_exp_\(sanitized)")
     }
 
     public func clearAllCache() {
