@@ -39,6 +39,9 @@ public struct HomeView: View {
             .padding()
         }
         .navigationTitle("Home")
+        .task {
+            try? await BrewService.shared.checkForUpdates()
+        }
     }
 }
 
