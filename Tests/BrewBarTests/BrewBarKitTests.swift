@@ -68,4 +68,27 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertEqual(item.currentVersion, "1.77.0")
         XCTAssertFalse(item.updateAvailable)
     }
+
+    func testSemanticSearchAndRanking() {
+        let items = [
+            FormulaItem(id: "python@3.11", name: "python@3.11", description: "Interpreted high-level language", currentVersion: "3.11.8", type: .formula),
+            FormulaItem(id: "postgresql@16", name: "postgresql@16", description: "Object-relational database system", currentVersion: "16.2", type: .formula),
+            FormulaItem(id: "visual-studio-code", name: "visual-studio-code", description: "Popular open source code editor", currentVersion: "1.85.0", type: .cask)
+        ]
+
+        // Test alias expansion & semantic lookup for "database"
+        let dbResults = SemanticSearchEngine.searchAndRank(items: items, query: "database")
+        XCTAssertFalse(dbResults.isEmpty)
+        XCTAssertEqual(dbResults.first?.id, "postgresql@16")
+
+        // Test alias expansion for "py" -> "python"
+        let pyResults = SemanticSearchEngine.searchAndRank(items: items, query: "py")
+        XCTAssertFalse(pyResults.isEmpty)
+        XCTAssertEqual(pyResults.first?.id, "python@3.11")
+
+        // Test "editor" -> "visual-studio-code"
+        let editorResults = SemanticSearchEngine.searchAndRank(items: items, query: "editor")
+        XCTAssertFalse(editorResults.isEmpty)
+        XCTAssertEqual(editorResults.first?.id, "visual-studio-code")
+    }
 }

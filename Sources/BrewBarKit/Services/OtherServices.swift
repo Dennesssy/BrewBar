@@ -14,14 +14,17 @@ public final class PackageService: ObservableObject {
 
     public func installPackage(_ item: FormulaItem) async throws {
         try await brewService.installFormula(item.name)
+        await SpotlightIndexer.shared.indexPackages([item])
     }
 
     public func upgradePackage(_ item: FormulaItem) async throws {
         try await brewService.upgradeFormula(item.name)
+        await SpotlightIndexer.shared.indexPackages([item])
     }
 
     public func removePackage(_ item: FormulaItem) async throws {
         try await brewService.uninstallFormula(item.name)
+        await SpotlightIndexer.shared.removePackageFromIndex(id: item.id, type: item.type)
     }
 }
 
@@ -38,7 +41,8 @@ public final class SearchService: ObservableObject {
     public init() {}
 
     public func search(_ query: String, filters: FilterState = .defaultFilters) async -> [FormulaItem] {
-        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanQuery.isEmpty else {
             self.searchResults = []
             return []
         }
@@ -46,22 +50,18 @@ public final class SearchService: ObservableObject {
         self.isSearching = true
         defer { self.isSearching = false }
 
-        var results: [FormulaItem] = []
+        var candidates: [FormulaItem] = []
 
-        // 1. Local installed match
-        let local = BrewService.shared.installedPackages.filter {
-            $0.name.localizedCaseInsensitiveContains(query) ||
-            $0.description.localizedCaseInsensitiveContains(query)
-        }
-        results.append(contentsOf: local)
+        // 1. Local installed packages candidates
+        candidates.append(contentsOf: BrewService.shared.installedPackages)
 
-        // 2. Remote GitHub Search
+        // 2. Remote GitHub Search candidates
         do {
-            let remote = try await githubClient.searchFormulas(query: query)
-            let existingIds = Set(results.map { $0.id })
+            let remote = try await githubClient.searchFormulas(query: cleanQuery)
+            let existingIds = Set(candidates.map { $0.id })
             for item in remote {
                 if !existingIds.contains(item.id) {
-                    results.append(item)
+                    candidates.append(item)
                 }
             }
         } catch {
@@ -70,12 +70,15 @@ public final class SearchService: ObservableObject {
 
         // Apply type filter if selected
         if let type = filters.selectedType {
-            results = results.filter { $0.type == type }
+            candidates = candidates.filter { $0.type == type }
         }
 
-        self.searchResults = results
-        addToRecentSearches(query)
-        return results
+        // Apply Semantic Lookup and Relevance Ranking
+        let rankedResults = SemanticSearchEngine.searchAndRank(items: candidates, query: cleanQuery)
+
+        self.searchResults = rankedResults
+        addToRecentSearches(cleanQuery)
+        return rankedResults
     }
 
     private func addToRecentSearches(_ query: String) {

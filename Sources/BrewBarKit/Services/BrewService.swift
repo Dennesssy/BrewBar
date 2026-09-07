@@ -60,6 +60,11 @@ public final class BrewService: ObservableObject {
             let packages = try outputParser.parseInstalledPackages(output)
             self.installedPackages = packages
             self.lastError = nil
+
+            // Index refreshed installed packages in macOS Spotlight
+            Task {
+                await SpotlightIndexer.shared.indexPackages(packages)
+            }
         } catch {
             let handledError = errorHandler.handle(error)
             self.lastError = handledError
