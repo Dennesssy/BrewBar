@@ -228,4 +228,124 @@ final class BrewBarKitTests: XCTestCase {
         let afterClear = await cacheManager.cachedData(forKey: "test/key")
         XCTAssertNil(afterClear, "Cache should be empty after clearAllCache()")
     }
+
+    // MARK: - ProcessManager Tests
+
+    func testProcessManagerCapturesFullStdout() async throws {
+        let processManager = ProcessManager()
+
+        // Generate a known amount of output to verify full capture
+        let lineCount = 100
+        let result = try await processManager.execute(
+            command: "for i in $(seq 1 \(lineCount)); do echo \"line $i\"; done",
+            timeout: 30
+        )
+
+        let lines = result.split(separator: "\n")
+        XCTAssertEqual(lines.count, lineCount, "Should capture all \(lineCount) lines of stdout")
+        XCTAssertTrue(result.contains("line 1"), "Should contain first line")
+        XCTAssertTrue(result.contains("line \(lineCount)"), "Should contain last line")
+    }
+
+    func testProcessManagerCapturesFullStderr() async {
+        let processManager = ProcessManager()
+
+        // Command that outputs to stderr and exits with non-zero
+        let lineCount = 50
+        do {
+            _ = try await processManager.execute(
+                command: "for i in $(seq 1 \(lineCount)); do echo \"error $i\" >&2; done; exit 1",
+                timeout: 30
+            )
+            XCTFail("Command should have failed")
+        } catch let error as BrewBarError {
+            if case .commandFailed(_, let errorMessage) = error {
+                let lines = errorMessage.split(separator: "\n")
+                XCTAssertEqual(lines.count, lineCount, "Should capture all \(lineCount) lines of stderr")
+                XCTAssertTrue(errorMessage.contains("error 1"), "Should contain first error line")
+                XCTAssertTrue(errorMessage.contains("error \(lineCount)"), "Should contain last error line")
+            } else {
+                XCTFail("Expected commandFailed error, got \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testProcessManagerStreamingOutputHandler() async throws {
+        let processManager = ProcessManager()
+        var streamedOutput = ""
+        let streamLock = NSLock()
+
+        let result = try await processManager.execute(
+            command: "echo 'first'; sleep 0.1; echo 'second'; sleep 0.1; echo 'third'",
+            timeout: 30,
+            outputHandler: { chunk in
+                streamLock.lock()
+                streamedOutput += chunk
+                streamLock.unlock()
+            }
+        )
+
+        // Verify streaming captured the same content as final result
+        XCTAssertTrue(streamedOutput.contains("first"), "Streamed output should contain 'first'")
+        XCTAssertTrue(streamedOutput.contains("second"), "Streamed output should contain 'second'")
+        XCTAssertTrue(streamedOutput.contains("third"), "Streamed output should contain 'third'")
+        XCTAssertEqual(
+            result.replacingOccurrences(of: "\n", with: ""),
+            streamedOutput.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: ""),
+            "Streamed output should match final result content"
+        )
+    }
+
+    func testProcessManagerTimeout() async {
+        let processManager = ProcessManager()
+
+        do {
+            _ = try await processManager.execute(
+                command: "sleep 10",
+                timeout: 0.5
+            )
+            XCTFail("Command should have timed out")
+        } catch let error as BrewBarError {
+            if case .commandTimeout(let cmd) = error {
+                XCTAssertTrue(cmd.contains("sleep"), "Timeout error should contain the command")
+            } else {
+                XCTFail("Expected commandTimeout error, got \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
+
+    func testProcessManagerSuccessfulCommand() async throws {
+        let processManager = ProcessManager()
+
+        let result = try await processManager.execute(
+            command: "echo 'hello world'",
+            timeout: 30
+        )
+
+        XCTAssertEqual(result, "hello world")
+    }
+
+    func testProcessManagerFailedCommand() async {
+        let processManager = ProcessManager()
+
+        do {
+            _ = try await processManager.execute(
+                command: "exit 42",
+                timeout: 30
+            )
+            XCTFail("Command should have failed")
+        } catch let error as BrewBarError {
+            if case .commandFailed = error {
+                // Expected
+            } else {
+                XCTFail("Expected commandFailed error, got \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
+    }
 }
