@@ -17,35 +17,65 @@ public final class BrewService: ObservableObject {
 
     public func installFormula(_ name: String) async throws {
         guard validateFormulaName(name) else {
-            throw BrewBarError.invalidFormulaName(name)
+            let err = BrewBarError.invalidFormulaName(name)
+            self.lastError = err
+            throw err
         }
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name).build()
-        _ = try await processManager.execute(command: cmd)
-        try await refreshInstalledPackages()
+        do {
+            _ = try await processManager.execute(command: cmd)
+            self.lastError = nil
+            try await refreshInstalledPackages()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
     }
 
     public func upgradeFormula(_ name: String) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name).build()
-        _ = try await processManager.execute(command: cmd)
-        try await refreshInstalledPackages()
-        try await checkForUpdates()
+        do {
+            _ = try await processManager.execute(command: cmd)
+            self.lastError = nil
+            try await refreshInstalledPackages()
+            try await checkForUpdates()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
     }
 
     public func upgradeAll() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade().build()
-        _ = try await processManager.execute(command: cmd)
-        try await refreshInstalledPackages()
-        try await checkForUpdates()
+        do {
+            _ = try await processManager.execute(command: cmd)
+            self.lastError = nil
+            try await refreshInstalledPackages()
+            try await checkForUpdates()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
     }
 
     public func uninstallFormula(_ name: String) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name).build()
-        _ = try await processManager.execute(command: cmd)
-        try await refreshInstalledPackages()
+        do {
+            _ = try await processManager.execute(command: cmd)
+            self.lastError = nil
+            try await refreshInstalledPackages()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
     }
 
     public func refreshInstalledPackages() async throws {
