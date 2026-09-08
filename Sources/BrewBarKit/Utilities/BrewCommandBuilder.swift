@@ -88,6 +88,24 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
+    /// `brew cleanup` removes old versions and cached downloads.
+    /// `dryRun: true` (`-n`) reports what would be removed without deleting.
+    public func cleanup(dryRun: Bool = false) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "cleanup"
+        copy.flags = dryRun ? ["-n"] : []
+        return copy
+    }
+
+    /// `brew update` refreshes Homebrew itself and tap metadata (formula/cask
+    /// definitions) — this should run before `brew outdated` to avoid
+    /// reporting staleness against out-of-date tap data.
+    public func update() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "update"
+        return copy
+    }
+
     private func escape(_ str: String) -> String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
         let filtered = str.unicodeScalars.filter { allowed.contains($0) }

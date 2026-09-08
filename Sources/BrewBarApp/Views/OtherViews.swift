@@ -29,6 +29,11 @@ public struct InstalledView: View {
                         Text(item.description).font(.subheadline).foregroundColor(.secondary)
                     }
                     Spacer()
+                    if let bytes = item.sizeInBytes {
+                        Text(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Text(item.currentVersion).font(.monospaced(.body)())
                 }
             }
@@ -260,6 +265,13 @@ public struct FormulaDetailView: View {
 
 public struct PreferencesView: View {
     @StateObject private var viewModel = PreferencesViewModel()
+    @ObservedObject private var brewService = BrewService.shared
+
+    @State private var cleanupPreview: String?
+    @State private var isPreviewingCleanup = false
+    @State private var showCleanupConfirmation = false
+    @State private var cleanupResult: String?
+    @State private var updateError: String?
 
     public init() {}
 
@@ -270,11 +282,98 @@ public struct PreferencesView: View {
                 Toggle("Show menu bar icon", isOn: $viewModel.preferences.showMenuBarIcon)
                 TextField("Homebrew Path", text: $viewModel.preferences.homebrewPrefix)
             }
+
+            Section("Maintenance") {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Update Homebrew")
+                        if let last = brewService.lastHomebrewUpdate {
+                            Text("Last updated \(last.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Refreshes formula/cask definitions before checking for outdated packages.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button(brewService.isUpdatingHomebrew ? "Updating…" : "Update Now") {
+                        Task {
+                            do {
+                                try await brewService.updateHomebrew()
+                                updateError = nil
+                            } catch {
+                                updateError = error.localizedDescription
+                            }
+                        }
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(brewService.isUpdatingHomebrew)
+                }
+                if let updateError {
+                    Text(updateError).font(.caption).foregroundColor(.red)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Clean Up")
+                            Text("Removes old versions and cached downloads for installed packages.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button(isPreviewingCleanup ? "Checking…" : "Preview") {
+                            Task {
+                                isPreviewingCleanup = true
+                                cleanupPreview = try? await brewService.cleanup(dryRun: true)
+                                isPreviewingCleanup = false
+                            }
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(isPreviewingCleanup || brewService.isCleaningUp)
+
+                        Button(brewService.isCleaningUp ? "Cleaning…" : "Clean Up Now") {
+                            showCleanupConfirmation = true
+                        }
+                        .buttonStyle(.glassProminent)
+                        .disabled(brewService.isCleaningUp)
+                    }
+
+                    if let cleanupPreview, !cleanupPreview.isEmpty {
+                        ScrollView {
+                            Text(cleanupPreview)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 120)
+                    }
+
+                    if let cleanupResult, !cleanupResult.isEmpty {
+                        Text(cleanupResult)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
         }
         .padding()
         .navigationTitle("Preferences")
         .onChange(of: viewModel.preferences) { _, _ in
             viewModel.save()
+        }
+        .alert("Clean Up Homebrew?", isPresented: $showCleanupConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clean Up", role: .destructive) {
+                Task {
+                    let output = try? await brewService.cleanup(dryRun: false)
+                    cleanupResult = output?.isEmpty == false ? output : "Nothing to clean up."
+                    cleanupPreview = nil
+                }
+            }
+        } message: {
+            Text("This permanently deletes old versions and cached downloads for installed formulas and casks. This cannot be undone.")
         }
     }
 }
