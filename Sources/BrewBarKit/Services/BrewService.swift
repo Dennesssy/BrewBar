@@ -22,9 +22,9 @@ public final class BrewService: ObservableObject {
             throw err
         }
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name).build()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name)
         do {
-            _ = try await processManager.execute(command: cmd)
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
             try await refreshInstalledPackages()
         } catch {
@@ -36,9 +36,9 @@ public final class BrewService: ObservableObject {
 
     public func upgradeFormula(_ name: String) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name).build()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name)
         do {
-            _ = try await processManager.execute(command: cmd)
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
@@ -51,9 +51,9 @@ public final class BrewService: ObservableObject {
 
     public func upgradeAll() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade().build()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade()
         do {
-            _ = try await processManager.execute(command: cmd)
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
@@ -66,9 +66,9 @@ public final class BrewService: ObservableObject {
 
     public func uninstallFormula(_ name: String) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name).build()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name)
         do {
-            _ = try await processManager.execute(command: cmd)
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
             try await refreshInstalledPackages()
         } catch {
@@ -83,10 +83,10 @@ public final class BrewService: ObservableObject {
         defer { isLoading = false }
 
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).listInstalledInfo().build()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).listInstalledInfo()
 
         do {
-            let output = try await processManager.execute(command: cmd)
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             let packages = try outputParser.parseInstalledPackages(output)
             self.installedPackages = packages
             self.lastError = nil
@@ -104,10 +104,10 @@ public final class BrewService: ObservableObject {
 
     public func checkForUpdates() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let cmd = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true).build()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true)
 
         do {
-            let output = try await processManager.execute(command: cmd)
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             let (formulas, casks) = try outputParser.parseOutdatedPackages(output)
 
             var updates: [FormulaItem] = []

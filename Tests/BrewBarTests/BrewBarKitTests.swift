@@ -5,14 +5,16 @@ final class BrewBarKitTests: XCTestCase {
 
     func testBrewCommandBuilder() {
         let builder = BrewCommandBuilder(brewPath: "/usr/local/bin/brew")
-        let installCmd = builder.install("python").build()
-        XCTAssertEqual(installCmd, "/usr/local/bin/brew install python")
 
-        let listCmd = builder.listInstalledInfo().build()
-        XCTAssertEqual(listCmd, "/usr/local/bin/brew info --installed --json=v2")
+        let installBuilder = builder.install("python")
+        XCTAssertEqual(installBuilder.executablePath, "/usr/local/bin/brew")
+        XCTAssertEqual(installBuilder.buildArguments(), ["install", "python"])
 
-        let outdatedCmd = builder.outdated(json: true).build()
-        XCTAssertEqual(outdatedCmd, "/usr/local/bin/brew outdated --json=v2")
+        let listBuilder = builder.listInstalledInfo()
+        XCTAssertEqual(listBuilder.buildArguments(), ["info", "--installed", "--json=v2"])
+
+        let outdatedBuilder = builder.outdated(json: true)
+        XCTAssertEqual(outdatedBuilder.buildArguments(), ["outdated", "--json=v2"])
     }
 
     func testOutputParser() throws {

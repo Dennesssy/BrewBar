@@ -80,15 +80,15 @@ public struct BrewCommandBuilder: Sendable {
         return String(filtered)
     }
 
-    public func build() -> String {
-        var components = [brewPath]
+    public func buildArguments() -> [String] {
+        var components: [String] = []
         if !subcommand.isEmpty {
             components.append(subcommand)
         }
         for flag in flags {
             components.append(flag)
         }
-        for (key, value) in options {
+        for (key, value) in options.sorted(by: { $0.key < $1.key }) {
             if value.isEmpty {
                 components.append("--\(key)")
             } else {
@@ -96,6 +96,10 @@ public struct BrewCommandBuilder: Sendable {
             }
         }
         components.append(contentsOf: arguments)
-        return components.joined(separator: " ")
+        return components
+    }
+
+    public var executablePath: String {
+        brewPath
     }
 }
