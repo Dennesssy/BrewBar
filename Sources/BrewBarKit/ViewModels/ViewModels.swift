@@ -136,21 +136,9 @@ public final class SearchViewModel: ObservableObject {
 @MainActor
 public final class FormulaDetailViewModel: ObservableObject {
     @Published public var formula: FormulaItem
-    @Published public private(set) var reviews: [UserReview] = []
-    @Published public private(set) var isLoading: Bool = false
 
     public init(formula: FormulaItem) {
         self.formula = formula
-        loadDetails()
-    }
-
-    public func loadDetails() {
-        isLoading = true
-        reviews = [
-            UserReview(formulaId: formula.id, authorUsername: "alex_dev", rating: 5, comment: "Works flawlessly! Highly recommended.", date: Date()),
-            UserReview(formulaId: formula.id, authorUsername: "sam_k", rating: 4, comment: "Solid package, easy to configure.", date: Date())
-        ]
-        isLoading = false
     }
 
     public func install() async throws {
@@ -176,5 +164,60 @@ public final class PreferencesViewModel: ObservableObject {
         Task {
             await LocalStorageManager.shared.savePreferences(preferences)
         }
+    }
+}
+
+public struct PackageCategory: Identifiable, Sendable {
+    public let id: String
+    public let name: String
+    public let systemImage: String
+    public let items: [FormulaItem]
+
+    public init(id: String, name: String, systemImage: String, items: [FormulaItem]) {
+        self.id = id
+        self.name = name
+        self.systemImage = systemImage
+        self.items = items
+    }
+}
+
+@MainActor
+public final class DiscoverViewModel: ObservableObject {
+    @Published public private(set) var categories: [PackageCategory] = []
+    @Published public private(set) var editorsPicks: [FormulaItem] = []
+
+    public init() {
+        loadCuratedContent()
+    }
+
+    public func loadCuratedContent() {
+        categories = [
+            PackageCategory(id: "dev-tools", name: "Developer Tools", systemImage: "hammer", items: [
+                FormulaItem(id: "git", name: "git", fullTitle: "Git", description: "Distributed version control system", currentVersion: "2.44.0", type: .formula, homepage: "https://git-scm.com", license: "GPL-2.0-only"),
+                FormulaItem(id: "gh", name: "gh", fullTitle: "GitHub CLI", description: "GitHub's official command line tool", currentVersion: "2.45.0", type: .formula, homepage: "https://cli.github.com", license: "MIT"),
+                FormulaItem(id: "docker", name: "docker", fullTitle: "Docker", description: "Pack, ship and run any application as a lightweight container", currentVersion: "26.0.0", type: .formula, homepage: "https://www.docker.com", license: "Apache-2.0")
+            ]),
+            PackageCategory(id: "databases", name: "Databases", systemImage: "cylinder.split.1x2", items: [
+                FormulaItem(id: "postgresql@16", name: "postgresql@16", fullTitle: "PostgreSQL 16", description: "Object-relational database system", currentVersion: "16.2", type: .formula, homepage: "https://www.postgresql.org", license: "PostgreSQL"),
+                FormulaItem(id: "redis", name: "redis", fullTitle: "Redis", description: "Persistent key-value database", currentVersion: "7.2.4", type: .formula, homepage: "https://redis.io", license: "RSALv2"),
+                FormulaItem(id: "sqlite", name: "sqlite", fullTitle: "SQLite", description: "Command-line interface for SQLite", currentVersion: "3.45.0", type: .formula, homepage: "https://www.sqlite.org", license: "blessing")
+            ]),
+            PackageCategory(id: "apps", name: "Apps & Browsers", systemImage: "app.badge", items: [
+                FormulaItem(id: "google-chrome", name: "Google Chrome", fullTitle: "Google Chrome", description: "Web browser", currentVersion: "123.0", type: .cask, homepage: "https://www.google.com/chrome"),
+                FormulaItem(id: "visual-studio-code", name: "Visual Studio Code", fullTitle: "Visual Studio Code", description: "Code editor", currentVersion: "1.88.0", type: .cask, homepage: "https://code.visualstudio.com"),
+                FormulaItem(id: "rectangle", name: "Rectangle", fullTitle: "Rectangle", description: "Move and resize windows using keyboard shortcuts or snap areas", currentVersion: "0.79", type: .cask, homepage: "https://rectangleapp.com", license: "MIT")
+            ]),
+            PackageCategory(id: "productivity", name: "Productivity", systemImage: "checklist", items: [
+                FormulaItem(id: "raycast", name: "Raycast", fullTitle: "Raycast", description: "Blazingly fast, totally extendable launcher", currentVersion: "1.75.0", type: .cask, homepage: "https://www.raycast.com"),
+                FormulaItem(id: "obsidian", name: "Obsidian", fullTitle: "Obsidian", description: "Knowledge base that works on top of local Markdown files", currentVersion: "1.5.12", type: .cask, homepage: "https://obsidian.md"),
+                FormulaItem(id: "rust", name: "rust", fullTitle: "Rust", description: "Safe, concurrent, practical language", currentVersion: "1.77.0", type: .formula, homepage: "https://www.rust-lang.org", license: "Apache-2.0")
+            ])
+        ]
+
+        editorsPicks = [
+            FormulaItem(id: "node", name: "node", fullTitle: "Node.js", description: "Platform built on V8 to build network applications", currentVersion: "21.7.1", type: .formula, homepage: "https://nodejs.org", license: "MIT"),
+            FormulaItem(id: "python@3.11", name: "python@3.11", fullTitle: "Python 3.11", description: "Interpreted, object-oriented, high-level programming language", currentVersion: "3.11.8", type: .formula, homepage: "https://www.python.org", license: "Python-2.0"),
+            FormulaItem(id: "wireshark", name: "Wireshark", fullTitle: "Wireshark", description: "Network traffic and protocol analyzer", currentVersion: "4.2.4", type: .cask, homepage: "https://www.wireshark.org")
+        ]
     }
 }

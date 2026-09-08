@@ -66,11 +66,10 @@ public struct UpdatesBannerView: View {
                         try? await brewService.upgradeAll()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
             }
             .padding()
-            .background(Color.accentColor.opacity(0.1))
-            .cornerRadius(12)
+            .glassEffect(.regular.tint(Color.accentColor.opacity(0.3)), in: .rect(cornerRadius: 12))
         }
     }
 }
@@ -110,16 +109,14 @@ public struct PackageCardView: View {
 
             Button("Install") {
                 Task {
-                    try? await BrewService.shared.installFormula(item.name)
+                    try? await BrewService.shared.installFormula(item.id)
                 }
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.glass)
             .controlSize(.small)
         }
         .padding()
         .frame(width: 220, height: 160)
-        .background(Color(NSColor.controlBackgroundColor))
-        .cornerRadius(10)
-        .shadow(radius: 2)
+        .glassEffect(.regular, in: .rect(cornerRadius: 10))
     }
 }

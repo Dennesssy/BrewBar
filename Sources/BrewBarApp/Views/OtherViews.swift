@@ -57,7 +57,7 @@ public struct UpdatesView: View {
                         await viewModel.updateAll()
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
             }
             .padding()
 
@@ -75,7 +75,7 @@ public struct UpdatesView: View {
                             await viewModel.updateItem(item)
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                 }
             }
         }
@@ -88,6 +88,7 @@ public struct UpdatesView: View {
 
 public struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
+    @EnvironmentObject private var searchState: AppSearchState
 
     public init() {}
 
@@ -103,6 +104,7 @@ public struct SearchView: View {
                 Button("Search") {
                     Task { await viewModel.performSearch() }
                 }
+                .buttonStyle(.glass)
             }
             .padding()
 
@@ -125,6 +127,18 @@ public struct SearchView: View {
             }
         }
         .navigationTitle("Search")
+        .onChange(of: searchState.pendingQuery) { _, newValue in
+            guard !newValue.isEmpty else { return }
+            viewModel.query = newValue
+            searchState.pendingQuery = ""
+            Task { await viewModel.performSearch() }
+        }
+        .task {
+            guard !searchState.pendingQuery.isEmpty else { return }
+            viewModel.query = searchState.pendingQuery
+            searchState.pendingQuery = ""
+            await viewModel.performSearch()
+        }
     }
 }
 
@@ -137,39 +151,110 @@ public struct FormulaDetailView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(viewModel.formula.name)
+            VStack(alignment: .leading, spacing: 24) {
+                // Header: icon, title, developer/homepage, install button
+                HStack(alignment: .top, spacing: 16) {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 80, height: 80)
+                        .overlay(
+                            Image(systemName: viewModel.formula.type == .cask ? "desktopcomputer" : "terminal")
+                                .font(.system(size: 34))
+                                .foregroundColor(.white)
+                        )
+                        .shadow(color: .black.opacity(0.25), radius: 5, y: 3)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.formula.fullTitle ?? viewModel.formula.name)
                             .font(.largeTitle)
                             .bold()
+                        if let homepage = viewModel.formula.homepage {
+                            Text(homepage)
+                                .font(.subheadline)
+                                .foregroundColor(.accentColor)
+                        }
                         Text(viewModel.formula.description)
-                            .font(.title3)
+                            .font(.body)
                             .foregroundColor(.secondary)
                     }
+
                     Spacer()
-                    Button("Install") {
+
+                    Button(viewModel.formula.updateAvailable ? "Update" : "Install") {
                         Task { try? await viewModel.install() }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                 }
 
                 Divider()
 
-                Text("Reviews").font(.title2).bold()
-                ForEach(viewModel.reviews) { review in
-                    VStack(alignment: .leading) {
-                        Text(review.authorUsername).font(.headline)
-                        Text(review.comment).font(.body)
+                // Metadata row, mirroring an App Store product page's info strip
+                HStack(spacing: 32) {
+                    metadataColumn(label: "VERSION", value: viewModel.formula.currentVersion.isEmpty ? "—" : viewModel.formula.currentVersion)
+                    metadataColumn(label: "TYPE", value: viewModel.formula.type.displayName)
+                    metadataColumn(label: "LICENSE", value: viewModel.formula.license ?? "Unknown")
+                    if let size = viewModel.formula.sizeInBytes {
+                        metadataColumn(label: "SIZE", value: ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
                     }
-                    .padding()
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(8)
+                }
+
+                Divider()
+
+                Text("Description")
+                    .font(.title2)
+                    .bold()
+                Text(viewModel.formula.description)
+                    .font(.body)
+
+                if !viewModel.formula.dependencies.isEmpty {
+                    Divider()
+                    Text("Dependencies")
+                        .font(.title2)
+                        .bold()
+                    ForEach(viewModel.formula.dependencies) { dependency in
+                        HStack {
+                            Image(systemName: "shippingbox")
+                                .foregroundColor(.secondary)
+                            Text(dependency.name)
+                            if dependency.isOptional {
+                                Text("optional")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                if let repository = viewModel.formula.repository {
+                    Divider()
+                    Text("Repository")
+                        .font(.title2)
+                        .bold()
+                    Text(repository)
+                        .font(.body)
+                        .foregroundColor(.accentColor)
                 }
             }
             .padding()
         }
         .navigationTitle(viewModel.formula.name)
+    }
+
+    @ViewBuilder
+    private func metadataColumn(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.headline)
+        }
     }
 }
 
