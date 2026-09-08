@@ -107,9 +107,13 @@ public actor CacheManager {
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
+    /// Deterministic, collision-free, traversal-safe filename for a cache key
+    /// via URL-safe Base64 encoding (no `/`, `.`, or `..` can appear in the output).
     private func sanitizeKey(_ key: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
-        return String(key.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" })
+        Data(key.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
     }
 
     public func cacheData(_ data: Data, forKey key: String, ttl: TimeInterval = 3600) {

@@ -60,8 +60,10 @@ public actor GitHubAPIClient {
     public func searchFormulas(query: String) async throws -> [FormulaItem] {
         guard !query.isEmpty else { return [] }
 
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://api.github.com/search/repositories?q=\(encodedQuery)+topic:homebrew-formula") else {
+        var components = URLComponents(string: "https://api.github.com/search/repositories")
+        components?.queryItems = [URLQueryItem(name: "q", value: "\(query) topic:homebrew-formula")]
+
+        guard let url = components?.url else {
             throw BrewBarError.networkError("Invalid search URL")
         }
 

@@ -57,7 +57,7 @@ public struct UserPreferences: Codable, Sendable, Hashable {
         darkMode: DarkModeSetting = .system,
         updateCheckInterval: TimeInterval = 3600,
         defaultShell: String = "zsh",
-        homebrewPrefix: String = "/opt/homebrew/bin/brew"
+        homebrewPrefix: String = HomebrewPath.defaultBrewExecutable
     ) {
         self.launchAtLogin = launchAtLogin
         self.showMenuBarIcon = showMenuBarIcon

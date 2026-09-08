@@ -67,8 +67,12 @@ public final class InstalledViewModel: ObservableObject {
             items.sort { $0.name.lowercased() < $1.name.lowercased() }
         case .nameDescending:
             items.sort { $0.name.lowercased() > $1.name.lowercased() }
-        case .installedDateNewest, .installedDateOldest, .sizeLargest:
-            break
+        case .installedDateNewest:
+            items.sort { ($0.installedDate ?? .distantPast) > ($1.installedDate ?? .distantPast) }
+        case .installedDateOldest:
+            items.sort { ($0.installedDate ?? .distantPast) < ($1.installedDate ?? .distantPast) }
+        case .sizeLargest:
+            items.sort { ($0.sizeInBytes ?? 0) > ($1.sizeInBytes ?? 0) }
         }
 
         return items
@@ -90,8 +94,12 @@ public final class UpdatesViewModel: ObservableObject {
     public init() {}
 
     public func checkForUpdates() async {
-        try? await brewService.checkForUpdates()
-        self.availableUpdates = brewService.availableUpdates
+        do {
+            try await brewService.checkForUpdates()
+            self.availableUpdates = brewService.availableUpdates
+        } catch {
+            self.availableUpdates = []
+        }
     }
 
     public func updateAll() async {
@@ -102,7 +110,7 @@ public final class UpdatesViewModel: ObservableObject {
     }
 
     public func updateItem(_ item: FormulaItem) async {
-        try? await brewService.upgradeFormula(item.name)
+        try? await brewService.upgradeFormula(item.id)
         await checkForUpdates()
     }
 }
@@ -146,11 +154,11 @@ public final class FormulaDetailViewModel: ObservableObject {
     }
 
     public func install() async throws {
-        try await BrewService.shared.installFormula(formula.name)
+        try await BrewService.shared.installFormula(formula.id)
     }
 
     public func uninstall() async throws {
-        try await BrewService.shared.uninstallFormula(formula.name)
+        try await BrewService.shared.uninstallFormula(formula.id)
     }
 }
 

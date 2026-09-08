@@ -7,7 +7,7 @@ public struct BrewCommandBuilder: Sendable {
     private var options: [String: String]
     private var flags: [String]
 
-    public init(brewPath: String = "/opt/homebrew/bin/brew") {
+    public init(brewPath: String = HomebrewPath.defaultBrewExecutable) {
         self.brewPath = brewPath
         self.subcommand = ""
         self.arguments = []

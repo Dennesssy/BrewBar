@@ -101,6 +101,17 @@ public actor ProcessManager {
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil
 
+                // Drain any bytes written between the last readabilityHandler
+                // callback and process termination so output isn't truncated.
+                let remainingOutput = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                if !remainingOutput.isEmpty {
+                    box.appendOutput(remainingOutput)
+                }
+                let remainingError = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                if !remainingError.isEmpty {
+                    box.appendError(remainingError)
+                }
+
                 let (finalOutput, finalError) = box.snapshot()
 
                 if proc.terminationStatus != 0 {

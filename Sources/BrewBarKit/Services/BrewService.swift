@@ -142,6 +142,30 @@ public final class BrewService: ObservableObject {
             }
 
             self.availableUpdates = updates
+
+            let updateIds = Set(updates.map { $0.id })
+            self.installedPackages = self.installedPackages.map { item in
+                FormulaItem(
+                    id: item.id,
+                    name: item.name,
+                    fullTitle: item.fullTitle,
+                    description: item.description,
+                    currentVersion: item.currentVersion,
+                    latestVersion: item.latestVersion,
+                    type: item.type,
+                    homepage: item.homepage,
+                    repository: item.repository,
+                    license: item.license,
+                    sizeInBytes: item.sizeInBytes,
+                    installedDate: item.installedDate,
+                    lastChecked: item.lastChecked,
+                    updateAvailable: updateIds.contains(item.id),
+                    isPinned: item.isPinned,
+                    isAutoUpdateEnabled: item.isAutoUpdateEnabled,
+                    dependencies: item.dependencies,
+                    versions: item.versions
+                )
+            }
             self.lastError = nil
         } catch {
             let handledError = errorHandler.handle(error)
