@@ -15,16 +15,18 @@ public struct BrewCommandBuilder: Sendable {
         self.flags = []
     }
 
-    public func install(_ formula: String) -> BrewCommandBuilder {
+    public func install(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "install"
+        copy.flags.append(contentsOf: typeFlag(for: type))
         copy.arguments = [escape(formula)]
         return copy
     }
 
-    public func upgrade(_ formula: String? = nil) -> BrewCommandBuilder {
+    public func upgrade(_ formula: String? = nil, type: PackageType? = nil) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "upgrade"
+        copy.flags.append(contentsOf: typeFlag(for: type))
         if let formula = formula {
             copy.arguments = [escape(formula)]
         } else {
@@ -33,11 +35,23 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
-    public func uninstall(_ formula: String) -> BrewCommandBuilder {
+    public func uninstall(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "uninstall"
+        copy.flags.append(contentsOf: typeFlag(for: type))
         copy.arguments = [escape(formula)]
         return copy
+    }
+
+    /// brew disambiguates a token shared by a formula and a cask (e.g. `cmake`)
+    /// via `--formula`/`--cask`; without it, brew's own default resolution order
+    /// can act on the wrong package.
+    private func typeFlag(for type: PackageType?) -> [String] {
+        switch type {
+        case .formula: return ["--formula"]
+        case .cask: return ["--cask"]
+        case .tap, nil: return []
+        }
     }
 
     public func listInstalledInfo() -> BrewCommandBuilder {

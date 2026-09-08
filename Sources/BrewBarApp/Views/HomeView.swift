@@ -109,7 +109,7 @@ public struct PackageCardView: View {
 
             Button("Install") {
                 Task {
-                    try? await BrewService.shared.installFormula(item.id)
+                    try? await BrewService.shared.installFormula(item.id, type: item.type)
                 }
             }
             .buttonStyle(.glass)

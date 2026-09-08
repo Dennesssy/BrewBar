@@ -110,7 +110,7 @@ public final class UpdatesViewModel: ObservableObject {
     }
 
     public func updateItem(_ item: FormulaItem) async {
-        try? await brewService.upgradeFormula(item.id)
+        try? await brewService.upgradeFormula(item.id, type: item.type)
         await checkForUpdates()
     }
 }
@@ -141,12 +141,18 @@ public final class FormulaDetailViewModel: ObservableObject {
         self.formula = formula
     }
 
+    /// Installs the formula, or upgrades it if it's already installed with
+    /// an update pending — matches the "Install"/"Update" button it backs.
     public func install() async throws {
-        try await BrewService.shared.installFormula(formula.id)
+        if formula.updateAvailable {
+            try await BrewService.shared.upgradeFormula(formula.id, type: formula.type)
+        } else {
+            try await BrewService.shared.installFormula(formula.id, type: formula.type)
+        }
     }
 
     public func uninstall() async throws {
-        try await BrewService.shared.uninstallFormula(formula.id)
+        try await BrewService.shared.uninstallFormula(formula.id, type: formula.type)
     }
 }
 

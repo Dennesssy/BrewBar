@@ -13,17 +13,17 @@ public final class PackageService: ObservableObject {
     }
 
     public func installPackage(_ item: FormulaItem) async throws {
-        try await brewService.installFormula(item.name)
+        try await brewService.installFormula(item.id, type: item.type)
         await SpotlightIndexer.shared.indexPackages([item])
     }
 
     public func upgradePackage(_ item: FormulaItem) async throws {
-        try await brewService.upgradeFormula(item.name)
+        try await brewService.upgradeFormula(item.id, type: item.type)
         await SpotlightIndexer.shared.indexPackages([item])
     }
 
     public func removePackage(_ item: FormulaItem) async throws {
-        try await brewService.uninstallFormula(item.name)
+        try await brewService.uninstallFormula(item.id, type: item.type)
         await SpotlightIndexer.shared.removePackageFromIndex(id: item.id, type: item.type)
     }
 }

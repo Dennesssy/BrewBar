@@ -15,14 +15,14 @@ public final class BrewService: ObservableObject {
 
     public init() {}
 
-    public func installFormula(_ name: String) async throws {
+    public func installFormula(_ name: String, type: PackageType? = nil) async throws {
         guard validateFormulaName(name) else {
             let err = BrewBarError.invalidFormulaName(name)
             self.lastError = err
             throw err
         }
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name)
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name, type: type)
         do {
             _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
@@ -34,9 +34,9 @@ public final class BrewService: ObservableObject {
         }
     }
 
-    public func upgradeFormula(_ name: String) async throws {
+    public func upgradeFormula(_ name: String, type: PackageType? = nil) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name)
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name, type: type)
         do {
             _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
@@ -64,13 +64,14 @@ public final class BrewService: ObservableObject {
         }
     }
 
-    public func uninstallFormula(_ name: String) async throws {
+    public func uninstallFormula(_ name: String, type: PackageType? = nil) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name)
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name, type: type)
         do {
             _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
             self.lastError = nil
             try await refreshInstalledPackages()
+            try await checkForUpdates()
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled

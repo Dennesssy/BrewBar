@@ -32,6 +32,13 @@ public struct DiscoverView: View {
             .padding(.bottom, 24)
         }
         .navigationTitle("Discover")
+        .task {
+            // Populate installedPackages so card statuses (Install/Installed/
+            // Update) are correct on first render, not just after visiting
+            // Installed/Updates.
+            try? await BrewService.shared.refreshInstalledPackages()
+            try? await BrewService.shared.checkForUpdates()
+        }
     }
 
     private var searchField: some View {
@@ -206,7 +213,7 @@ public struct DiscoverPackageCardView: View {
             Button(isWorking ? "…" : "Install") {
                 Task {
                     isWorking = true
-                    try? await BrewService.shared.installFormula(item.id)
+                    try? await BrewService.shared.installFormula(item.id, type: item.type)
                     isWorking = false
                 }
             }
@@ -221,7 +228,7 @@ public struct DiscoverPackageCardView: View {
             Button(isWorking ? "…" : "Update") {
                 Task {
                     isWorking = true
-                    try? await BrewService.shared.upgradeFormula(item.id)
+                    try? await BrewService.shared.upgradeFormula(item.id, type: item.type)
                     isWorking = false
                 }
             }
