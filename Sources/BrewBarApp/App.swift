@@ -28,6 +28,7 @@ struct ContentView: View {
         case home = "Home"
         case installed = "Installed"
         case updates = "Updates"
+        case services = "Services"
         case search = "Search"
         case settings = "Settings"
 
@@ -39,6 +40,7 @@ struct ContentView: View {
             case .home: return "house"
             case .installed: return "shippingbox"
             case .updates: return "arrow.triangle.2.circlepath"
+            case .services: return "gearshape.2"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
             }
@@ -62,6 +64,8 @@ struct ContentView: View {
                 InstalledView()
             case .updates:
                 UpdatesView()
+            case .services:
+                ServicesView()
             case .search:
                 SearchView()
             case .settings:

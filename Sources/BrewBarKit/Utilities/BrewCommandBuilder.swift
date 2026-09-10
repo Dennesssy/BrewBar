@@ -106,6 +106,26 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
+    /// `brew services list --json`
+    public func servicesList() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "services"
+        copy.arguments = ["list", "--json"]
+        return copy
+    }
+
+    /// `brew services start|stop|restart <formula>`
+    public func servicesAction(_ action: ServiceAction, formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "services"
+        copy.arguments = [action.rawValue, escape(formula)]
+        return copy
+    }
+
+    public enum ServiceAction: String, Sendable {
+        case start, stop, restart
+    }
+
     private func escape(_ str: String) -> String {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
         let filtered = str.unicodeScalars.filter { allowed.contains($0) }

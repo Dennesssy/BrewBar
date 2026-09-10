@@ -31,8 +31,28 @@ public struct BrewCask: Codable, Sendable {
     public let homepage: String?
 }
 
+/// Matches the real `brew services list --json` schema: an array of objects
+/// with name/status/user/file/exit_code (verified against live output).
+public struct BrewServiceEntry: Codable, Sendable {
+    public let name: String
+    public let status: String
+    public let user: String?
+    public let file: String?
+}
+
 public struct OutputParser: Sendable {
     public init() {}
+
+    public func parseServices(_ jsonString: String) throws -> [BrewServiceStatus] {
+        guard let data = jsonString.data(using: .utf8) else {
+            throw BrewBarError.parseError("Invalid UTF-8 string")
+        }
+        let decoder = JSONDecoder()
+        let entries = try decoder.decode([BrewServiceEntry].self, from: data)
+        return entries.map {
+            BrewServiceStatus(name: $0.name, status: $0.status, user: $0.user, plist: $0.file)
+        }
+    }
 
     public func parseInstalledPackages(_ jsonString: String) throws -> [FormulaItem] {
         guard let data = jsonString.data(using: .utf8) else {

@@ -28,6 +28,70 @@ public final class PackageService: ObservableObject {
     }
 }
 
+/// Wraps `brew services` — background daemons (postgres, redis, nginx, etc.)
+/// managed via launchctl. Distinct from `PackageService`: services are a
+/// runtime state (started/stopped) layered on top of an installed formula,
+/// not the install/uninstall lifecycle itself.
+@MainActor
+public final class ServicesManager: ObservableObject {
+    public static let shared = ServicesManager()
+
+    @Published public private(set) var services: [BrewServiceStatus] = []
+    @Published public private(set) var isLoading: Bool = false
+    @Published public private(set) var lastError: BrewBarError?
+    @Published public private(set) var pendingActions: Set<String> = []
+
+    private let processManager = ProcessManager()
+    private let outputParser = OutputParser()
+    private let errorHandler = ErrorHandler()
+
+    public init() {}
+
+    public func refresh() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesList()
+
+        do {
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            self.services = try outputParser.parseServices(output)
+            self.lastError = nil
+        } catch {
+            self.lastError = errorHandler.handle(error)
+        }
+    }
+
+    public func start(_ name: String) async {
+        await performAction(.start, name: name)
+    }
+
+    public func stop(_ name: String) async {
+        await performAction(.stop, name: name)
+    }
+
+    public func restart(_ name: String) async {
+        await performAction(.restart, name: name)
+    }
+
+    private func performAction(_ action: BrewCommandBuilder.ServiceAction, name: String) async {
+        pendingActions.insert(name)
+        defer { pendingActions.remove(name) }
+
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesAction(action, formula: name)
+
+        do {
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 60)
+            self.lastError = nil
+        } catch {
+            self.lastError = errorHandler.handle(error)
+        }
+        await refresh()
+    }
+}
+
 @MainActor
 public final class SearchService: ObservableObject {
     public static let shared = SearchService()
