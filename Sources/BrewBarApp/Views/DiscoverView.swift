@@ -3,21 +3,13 @@ import BrewBarKit
 
 public struct DiscoverView: View {
     @StateObject private var viewModel = DiscoverViewModel()
-    @State private var searchText = ""
-    @EnvironmentObject private var searchState: AppSearchState
-    @Binding var selectedTab: ContentView.Tab
 
-    init(selectedTab: Binding<ContentView.Tab>) {
-        _selectedTab = selectedTab
-    }
+    public init() {}
 
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                searchField
-
                 heroBanner
-                    .padding(.top, 20)
 
                 sectionDivider
 
@@ -39,23 +31,6 @@ public struct DiscoverView: View {
             try? await BrewService.shared.refreshInstalledPackages()
             try? await BrewService.shared.checkForUpdates()
         }
-    }
-
-    private var searchField: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
-            TextField("Search formulas & casks...", text: $searchText)
-                .textFieldStyle(.plain)
-                .onSubmit {
-                    guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                    searchState.pendingQuery = searchText
-                    selectedTab = .search
-                }
-        }
-        .padding(8)
-        .glassEffect(.regular, in: .rect(cornerRadius: 8))
-        .padding(.top, 12)
     }
 
     private var sectionDivider: some View {

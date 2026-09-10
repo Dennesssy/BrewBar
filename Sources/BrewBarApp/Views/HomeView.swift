@@ -8,39 +8,71 @@ public struct HomeView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Updates Banner
+            VStack(alignment: .leading, spacing: 24) {
                 UpdatesBannerView()
 
-                // Featured Section
-                Text("Featured Packages")
-                    .font(.title2)
-                    .bold()
+                ServicesStatusStripView()
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
-                        ForEach(viewModel.featured) { item in
-                            PackageCardView(item: item)
-                        }
-                    }
+                if !viewModel.recentlyUpdated.isEmpty {
+                    PackageCarouselSection(title: "Recently Installed", items: viewModel.recentlyUpdated)
                 }
 
-                // Recommended Section
-                Text("Recommended for You")
-                    .font(.title2)
-                    .bold()
+                PackageCarouselSection(title: "Featured Packages", items: viewModel.featured)
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 220))], spacing: 16) {
-                    ForEach(viewModel.recommended) { item in
-                        PackageCardView(item: item)
-                    }
-                }
+                PackageCarouselSection(title: "Recommended for You", items: viewModel.recommended)
             }
             .padding()
         }
         .navigationTitle("Home")
         .task {
             try? await BrewService.shared.checkForUpdates()
+            try? await BrewService.shared.refreshInstalledPackages()
+            viewModel.loadData()
+            await ServicesManager.shared.refresh()
+        }
+    }
+}
+
+/// Compact at-a-glance summary of running/stopped brew services, so the
+/// Home page surfaces real machine state instead of only editorial content.
+/// Tapping a chip jumps to the full Services tab.
+public struct ServicesStatusStripView: View {
+    @ObservedObject private var manager = ServicesManager.shared
+
+    public init() {}
+
+    private var registeredServices: [BrewServiceStatus] {
+        manager.services.filter { $0.status != "none" }
+    }
+
+    public var body: some View {
+        if !registeredServices.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Services")
+                    .font(.title2)
+                    .bold()
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(registeredServices, id: \.id) { service in
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(service.status == "started" ? Color.green : (service.status == "error" ? Color.red : Color.secondary))
+                                    .frame(width: 7, height: 7)
+                                Text(service.name)
+                                    .font(.caption)
+                                    .bold()
+                                Text(service.status == "started" ? "Running" : (service.status == "error" ? "Error" : "Stopped"))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .glassEffect(.regular, in: .rect(cornerRadius: 8))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -71,52 +103,5 @@ public struct UpdatesBannerView: View {
             .padding()
             .glassEffect(.regular.tint(Color.accentColor.opacity(0.3)), in: .rect(cornerRadius: 12))
         }
-    }
-}
-
-public struct PackageCardView: View {
-    let item: FormulaItem
-
-    public init(item: FormulaItem) {
-        self.item = item
-    }
-
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: item.type == .cask ? "desktopcomputer" : "terminal")
-                    .font(.title2)
-                    .foregroundColor(.accentColor)
-                Spacer()
-                Text(item.type.displayName)
-                    .font(.caption)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.2))
-                    .cornerRadius(4)
-            }
-
-            Text(item.name)
-                .font(.headline)
-                .lineLimit(1)
-
-            Text(item.description)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(2)
-
-            Spacer()
-
-            Button("Install") {
-                Task {
-                    try? await BrewService.shared.installFormula(item.id, type: item.type)
-                }
-            }
-            .buttonStyle(.glass)
-            .controlSize(.small)
-        }
-        .padding()
-        .frame(width: 220, height: 160)
-        .glassEffect(.regular, in: .rect(cornerRadius: 10))
     }
 }

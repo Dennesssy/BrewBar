@@ -22,6 +22,8 @@ final class AppSearchState: ObservableObject {
 
 struct ContentView: View {
     @State private var selectedTab: Tab = .home
+    @State private var searchQuery: String = ""
+    @EnvironmentObject private var searchState: AppSearchState
 
     enum Tab: String, CaseIterable, Identifiable {
         case discover = "Discover"
@@ -33,6 +35,13 @@ struct ContentView: View {
         case settings = "Settings"
 
         var id: String { rawValue }
+
+        /// Rows rendered in the sidebar list. `.search` is excluded here —
+        /// like the App Store, search lives in a search field above the
+        /// sidebar list (via `.searchable`), not as its own nav row.
+        static var sidebarCases: [Tab] {
+            allCases.filter { $0 != .search }
+        }
 
         var systemImage: String {
             switch self {
@@ -49,15 +58,21 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(Tab.allCases, selection: $selectedTab) { tab in
+            List(Tab.sidebarCases, selection: $selectedTab) { tab in
                 Label(tab.rawValue, systemImage: tab.systemImage)
                     .tag(tab)
             }
             .navigationTitle("BrewBar")
+            .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search formulas & casks")
+            .onSubmit(of: .search) {
+                guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                searchState.pendingQuery = searchQuery
+                selectedTab = .search
+            }
         } detail: {
             switch selectedTab {
             case .discover:
-                DiscoverView(selectedTab: $selectedTab)
+                DiscoverView()
             case .home:
                 HomeView()
             case .installed:
