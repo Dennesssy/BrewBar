@@ -24,6 +24,8 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .home
     @State private var searchQuery: String = ""
     @EnvironmentObject private var searchState: AppSearchState
+    @ObservedObject private var brewService = BrewService.shared
+    @ObservedObject private var servicesManager = ServicesManager.shared
 
     enum Tab: String, CaseIterable, Identifiable {
         case discover = "Discover"
@@ -61,31 +63,45 @@ struct ContentView: View {
             List(Tab.sidebarCases, selection: $selectedTab) { tab in
                 Label(tab.rawValue, systemImage: tab.systemImage)
                     .tag(tab)
+                    .badge(badgeCount(for: tab))
             }
             .navigationTitle("BrewBar")
-            .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search formulas & casks")
-            .onSubmit(of: .search) {
-                guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                searchState.pendingQuery = searchQuery
-                selectedTab = .search
-            }
         } detail: {
-            switch selectedTab {
-            case .discover:
-                DiscoverView()
-            case .home:
-                HomeView()
-            case .installed:
-                InstalledView()
-            case .updates:
-                UpdatesView()
-            case .services:
-                ServicesView()
-            case .search:
-                SearchView()
-            case .settings:
-                PreferencesView()
-            }
+            detailView
+        }
+    }
+
+    /// Real counts only — a badge of 0 renders nothing, so idle rows stay
+    /// clean. Services badges only on errors (a running service isn't
+    /// something that needs attention; a failed one is).
+    private func badgeCount(for tab: Tab) -> Int {
+        switch tab {
+        case .updates:
+            return brewService.availableUpdates.count
+        case .services:
+            return servicesManager.services.filter { $0.status == "error" }.count
+        default:
+            return 0
+        }
+    }
+
+    @ViewBuilder
+    private var detailView: some View {
+        switch selectedTab {
+        case .discover:
+            DiscoverView()
+        case .home:
+            HomeView()
+        case .installed:
+            InstalledView()
+        case .updates:
+            UpdatesView()
+        case .services:
+            ServicesView()
+        case .search:
+            SearchView()
+        case .settings:
+            PreferencesView()
         }
     }
 }

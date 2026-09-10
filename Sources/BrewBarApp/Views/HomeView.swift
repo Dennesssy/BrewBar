@@ -53,22 +53,28 @@ public struct ServicesStatusStripView: View {
                     .bold()
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(registeredServices, id: \.id) { service in
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(service.status == "started" ? Color.green : (service.status == "error" ? Color.red : Color.secondary))
-                                    .frame(width: 7, height: 7)
-                                Text(service.name)
-                                    .font(.caption)
-                                    .bold()
-                                Text(service.status == "started" ? "Running" : (service.status == "error" ? "Error" : "Stopped"))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
+                    // Multiple .glassEffect() views updating in the same frame
+                    // without a shared GlassEffectContainer trips a fatal
+                    // "tried to update multiple times per frame" error —
+                    // matches the pattern PackageCarouselSection already uses.
+                    GlassEffectContainer(spacing: 10) {
+                        HStack(spacing: 10) {
+                            ForEach(registeredServices, id: \.id) { service in
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(service.status == "started" ? Color.green : (service.status == "error" ? Color.red : Color.secondary))
+                                        .frame(width: 7, height: 7)
+                                    Text(service.name)
+                                        .font(.caption)
+                                        .bold()
+                                    Text(service.status == "started" ? "Running" : (service.status == "error" ? "Error" : "Stopped"))
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .glassEffect(.regular, in: .rect(cornerRadius: 8))
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .glassEffect(.regular, in: .rect(cornerRadius: 8))
                         }
                     }
                 }
