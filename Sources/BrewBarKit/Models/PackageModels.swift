@@ -87,6 +87,11 @@ public struct FormulaItem: Codable, Sendable, Identifiable, Hashable {
     public let isAutoUpdateEnabled: Bool
     public let dependencies: [Dependency]
     public let versions: [PackageVersion]
+    /// True for results sourced from GitHub repository search rather than a
+    /// verified Homebrew formula/cask — a repo tagged `homebrew-formula` is
+    /// not guaranteed to be `brew install`-able under that name. Views
+    /// should not offer a direct Install action for these.
+    public let isRemoteSuggestion: Bool
 
     public init(
         id: String,
@@ -106,7 +111,8 @@ public struct FormulaItem: Codable, Sendable, Identifiable, Hashable {
         isPinned: Bool = false,
         isAutoUpdateEnabled: Bool = false,
         dependencies: [Dependency] = [],
-        versions: [PackageVersion] = []
+        versions: [PackageVersion] = [],
+        isRemoteSuggestion: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -126,5 +132,6 @@ public struct FormulaItem: Codable, Sendable, Identifiable, Hashable {
         self.isAutoUpdateEnabled = isAutoUpdateEnabled
         self.dependencies = dependencies
         self.versions = versions
+        self.isRemoteSuggestion = isRemoteSuggestion
     }
 }

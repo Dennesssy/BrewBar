@@ -66,6 +66,12 @@ struct ContentView: View {
                     .badge(badgeCount(for: tab))
             }
             .navigationTitle("BrewBar")
+            .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search formulas & casks")
+            .onSubmit(of: .search) {
+                guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                searchState.pendingQuery = searchQuery
+                selectedTab = .search
+            }
         } detail: {
             detailView
         }

@@ -139,9 +139,14 @@ public final class BrewService: ObservableObject {
     /// over the real Cellar/Caskroom directories instead of guessing.
     private func computeInstalledSizes(brewPath: String) async -> [String: UInt64] {
         var sizes: [String: UInt64] = [:]
+        // Route through BrewCommandBuilder so a preference stored as an
+        // install prefix (e.g. "/opt/homebrew") rather than the brew
+        // executable itself still resolves correctly, matching every other
+        // call site.
+        let resolvedBrewPath = BrewCommandBuilder(brewPath: brewPath).executablePath
 
         for flag in ["--cellar", "--caskroom"] {
-            guard let dirPath = try? await processManager.execute(executablePath: brewPath, arguments: [flag]) else {
+            guard let dirPath = try? await processManager.execute(executablePath: resolvedBrewPath, arguments: [flag]) else {
                 continue
             }
             let trimmedPath = dirPath.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -235,16 +240,13 @@ public final class BrewService: ObservableObject {
             }
 
             for cask in casks {
-                let name = cask.name?.first ?? cask.token
                 updates.append(FormulaItem(
-                    id: cask.token,
-                    name: name,
-                    fullTitle: cask.token,
-                    description: cask.desc ?? "",
+                    id: cask.name,
+                    name: cask.name,
+                    fullTitle: cask.name,
                     currentVersion: cask.installed_versions?.first ?? "",
                     latestVersion: cask.current_version,
                     type: .cask,
-                    homepage: cask.homepage,
                     updateAvailable: true
                 ))
             }

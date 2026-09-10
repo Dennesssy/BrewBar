@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#endif
 
 private final class ProcessOutputBox: @unchecked Sendable {
     private let lock = NSLock()
@@ -116,14 +119,23 @@ public actor ProcessManager {
 
             let killItem = DispatchWorkItem {
                 if process.isRunning {
-                    kill(process.processIdentifier, SIGKILL)
+                    // Negative pid targets the whole process group, not just
+                    // the direct child — a command that backgrounds work
+                    // (e.g. a build script spawning a helper) would otherwise
+                    // survive SIGKILL to the leader alone and keep running,
+                    // potentially still holding the pipes open.
+                    kill(-process.processIdentifier, SIGKILL)
                 }
             }
             box.setKillItem(killItem)
 
             let timeoutItem = DispatchWorkItem {
-                box.markTimedOut()
+                // Only flag as timed out if the process is still running at
+                // the deadline — otherwise a command that finished (success
+                // or failure) right as the timer fires gets misreported as
+                // .commandTimeout instead of its real outcome.
                 if process.isRunning {
+                    box.markTimedOut()
                     process.terminate()
                     DispatchQueue.global().asyncAfter(deadline: .now() + Self.killEscalationDelay, execute: killItem)
                 }
@@ -168,6 +180,14 @@ public actor ProcessManager {
 
             do {
                 try process.run()
+                // Move the child into its own process group so a SIGKILL
+                // targeted at -pid reaches only this command's subtree, not
+                // our own process group. Best-effort: there's an inherent
+                // small race where a grandchild forked in the instant
+                // between exec and this call could still land in the old
+                // group, but this covers the common "backgrounds a helper"
+                // case the timeout escalation is meant to catch.
+                setpgid(process.processIdentifier, process.processIdentifier)
             } catch {
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil

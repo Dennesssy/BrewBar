@@ -80,7 +80,8 @@ public actor GitHubAPIClient {
                 description: repo.description ?? "",
                 type: .formula,
                 homepage: repo.htmlUrl,
-                repository: repo.htmlUrl
+                repository: repo.htmlUrl,
+                isRemoteSuggestion: true
             )
         }
     }

@@ -8,11 +8,21 @@ public struct BrewCommandBuilder: Sendable {
     private var flags: [String]
 
     public init(brewPath: String = HomebrewPath.defaultBrewExecutable) {
-        self.brewPath = brewPath
+        self.brewPath = Self.resolveExecutablePath(brewPath)
         self.subcommand = ""
         self.arguments = []
         self.options = [:]
         self.flags = []
+    }
+
+    /// The stored preference is called "Homebrew Path" and is commonly
+    /// understood as the install prefix (e.g. `/opt/homebrew`, what
+    /// `brew --prefix` returns) rather than the `brew` binary itself — a
+    /// user typing the prefix would otherwise make every command try to
+    /// execute a directory. Normalize either form to the real executable.
+    private static func resolveExecutablePath(_ path: String) -> String {
+        if path.hasSuffix("/brew") { return path }
+        return path.hasSuffix("/") ? path + "bin/brew" : path + "/bin/brew"
     }
 
     public func install(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {

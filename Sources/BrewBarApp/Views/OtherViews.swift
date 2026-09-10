@@ -126,7 +126,9 @@ public struct SearchView: View {
                             Text(item.description).font(.subheadline).foregroundColor(.secondary)
                         }
                         Spacer()
-                        Text(item.type.displayName).font(.caption)
+                        Text(item.isRemoteSuggestion ? "GitHub" : item.type.displayName)
+                            .font(.caption)
+                            .foregroundColor(item.isRemoteSuggestion ? .secondary : .primary)
                     }
                 }
             }
@@ -191,10 +193,21 @@ public struct FormulaDetailView: View {
 
                     Spacer()
 
-                    Button(viewModel.formula.updateAvailable ? "Update" : "Install") {
-                        Task { try? await viewModel.install() }
+                    // GitHub repo-search results aren't verified Homebrew
+                    // formulas/casks — a repo tagged `homebrew-formula` isn't
+                    // guaranteed installable under that exact name, so don't
+                    // offer a false-promise Install button for them.
+                    if viewModel.formula.isRemoteSuggestion {
+                        if let repository = viewModel.formula.repository, let url = URL(string: repository) {
+                            Link("View on GitHub", destination: url)
+                                .buttonStyle(.glass)
+                        }
+                    } else {
+                        Button(viewModel.formula.updateAvailable ? "Update" : "Install") {
+                            Task { try? await viewModel.install() }
+                        }
+                        .buttonStyle(.glassProminent)
                     }
-                    .buttonStyle(.glassProminent)
                 }
 
                 Divider()
@@ -367,9 +380,16 @@ public struct PreferencesView: View {
             Button("Cancel", role: .cancel) {}
             Button("Clean Up", role: .destructive) {
                 Task {
-                    let output = try? await brewService.cleanup(dryRun: false)
-                    cleanupResult = output?.isEmpty == false ? output : "Nothing to clean up."
-                    cleanupPreview = nil
+                    do {
+                        let output = try await brewService.cleanup(dryRun: false)
+                        cleanupResult = output.isEmpty ? "Nothing to clean up." : output
+                        cleanupPreview = nil
+                    } catch {
+                        // Preserve the preview on failure — a failed cleanup
+                        // (bad path, timeout) is not the same as "nothing to
+                        // clean up" and shouldn't look like a success.
+                        cleanupResult = "Clean up failed: \(error.localizedDescription)"
+                    }
                 }
             }
         } message: {

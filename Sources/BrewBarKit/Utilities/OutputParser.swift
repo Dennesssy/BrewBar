@@ -7,7 +7,18 @@ public struct BrewListOutput: Codable, Sendable {
 
 public struct BrewOutdatedOutput: Codable, Sendable {
     public let formulae: [BrewFormula]
-    public let casks: [BrewCask]
+    public let casks: [BrewOutdatedCask]
+}
+
+/// `brew outdated --json=v2` casks use a different shape than `brew info`'s:
+/// `name` is the bare token string (not `[String]`) and there is no `token`
+/// key at all (verified against live `brew outdated --json=v2` output).
+/// Reusing `BrewCask` here throws on any response containing a cask, since
+/// `token` is required and `name` is typed as `[String]?`.
+public struct BrewOutdatedCask: Codable, Sendable {
+    public let name: String
+    public let installed_versions: [String]?
+    public let current_version: String?
 }
 
 public struct BrewFormula: Codable, Sendable {
@@ -98,7 +109,7 @@ public struct OutputParser: Sendable {
         return items
     }
 
-    public func parseOutdatedPackages(_ jsonString: String) throws -> (formulas: [BrewFormula], casks: [BrewCask]) {
+    public func parseOutdatedPackages(_ jsonString: String) throws -> (formulas: [BrewFormula], casks: [BrewOutdatedCask]) {
         guard let data = jsonString.data(using: .utf8) else {
             throw BrewBarError.parseError("Invalid UTF-8 string")
         }
