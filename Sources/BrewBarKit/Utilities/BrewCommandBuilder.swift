@@ -1,0 +1,167 @@
+import Foundation
+
+public struct BrewCommandBuilder: Sendable {
+    private var brewPath: String
+    private var subcommand: String
+    private var arguments: [String]
+    private var options: [String: String]
+    private var flags: [String]
+
+    public init(brewPath: String = HomebrewPath.defaultBrewExecutable) {
+        self.brewPath = Self.resolveExecutablePath(brewPath)
+        self.subcommand = ""
+        self.arguments = []
+        self.options = [:]
+        self.flags = []
+    }
+
+    /// The stored preference is called "Homebrew Path" and is commonly
+    /// understood as the install prefix (e.g. `/opt/homebrew`, what
+    /// `brew --prefix` returns) rather than the `brew` binary itself — a
+    /// user typing the prefix would otherwise make every command try to
+    /// execute a directory. Normalize either form to the real executable.
+    private static func resolveExecutablePath(_ path: String) -> String {
+        if path.hasSuffix("/brew") { return path }
+        return path.hasSuffix("/") ? path + "bin/brew" : path + "/bin/brew"
+    }
+
+    public func install(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "install"
+        copy.flags.append(contentsOf: typeFlag(for: type))
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    public func upgrade(_ formula: String? = nil, type: PackageType? = nil) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "upgrade"
+        copy.flags.append(contentsOf: typeFlag(for: type))
+        if let formula = formula {
+            copy.arguments = [escape(formula)]
+        } else {
+            copy.arguments = []
+        }
+        return copy
+    }
+
+    public func uninstall(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "uninstall"
+        copy.flags.append(contentsOf: typeFlag(for: type))
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    /// brew disambiguates a token shared by a formula and a cask (e.g. `cmake`)
+    /// via `--formula`/`--cask`; without it, brew's own default resolution order
+    /// can act on the wrong package.
+    private func typeFlag(for type: PackageType?) -> [String] {
+        switch type {
+        case .formula: return ["--formula"]
+        case .cask: return ["--cask"]
+        case .tap, nil: return []
+        }
+    }
+
+    public func listInstalledInfo() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "info"
+        copy.options["json"] = "v2"
+        copy.flags = ["--installed"]
+        return copy
+    }
+
+    public func outdated(json: Bool = true) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "outdated"
+        if json {
+            copy.options["json"] = "v2"
+        }
+        return copy
+    }
+
+    public func info(_ formula: String, json: Bool = true) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "info"
+        copy.arguments = [escape(formula)]
+        if json {
+            copy.options["json"] = "v2"
+        }
+        return copy
+    }
+
+    public func search(_ query: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "search"
+        copy.arguments = [escape(query)]
+        return copy
+    }
+
+    /// `brew cleanup` removes old versions and cached downloads.
+    /// `dryRun: true` (`-n`) reports what would be removed without deleting.
+    public func cleanup(dryRun: Bool = false) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "cleanup"
+        copy.flags = dryRun ? ["-n"] : []
+        return copy
+    }
+
+    /// `brew update` refreshes Homebrew itself and tap metadata (formula/cask
+    /// definitions) — this should run before `brew outdated` to avoid
+    /// reporting staleness against out-of-date tap data.
+    public func update() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "update"
+        return copy
+    }
+
+    /// `brew services list --json`
+    public func servicesList() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "services"
+        copy.arguments = ["list", "--json"]
+        return copy
+    }
+
+    /// `brew services start|stop|restart <formula>`
+    public func servicesAction(_ action: ServiceAction, formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "services"
+        copy.arguments = [action.rawValue, escape(formula)]
+        return copy
+    }
+
+    public enum ServiceAction: String, Sendable {
+        case start, stop, restart
+    }
+
+    private func escape(_ str: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
+        let filtered = str.unicodeScalars.filter { allowed.contains($0) }
+        return String(filtered)
+    }
+
+    public func buildArguments() -> [String] {
+        var components: [String] = []
+        if !subcommand.isEmpty {
+            components.append(subcommand)
+        }
+        for flag in flags {
+            components.append(flag)
+        }
+        for (key, value) in options.sorted(by: { $0.key < $1.key }) {
+            if value.isEmpty {
+                components.append("--\(key)")
+            } else {
+                components.append("--\(key)=\(value)")
+            }
+        }
+        components.append(contentsOf: arguments)
+        return components
+    }
+
+    public var executablePath: String {
+        brewPath
+    }
+}
