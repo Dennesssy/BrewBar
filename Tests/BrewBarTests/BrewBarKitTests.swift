@@ -93,4 +93,34 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertFalse(editorResults.isEmpty)
         XCTAssertEqual(editorResults.first?.id, "visual-studio-code")
     }
+
+    func testParseNewPackagesFromBrewUpdateOutput() {
+        // Real `brew update` wraps long lists across multiple
+        // whitespace-separated lines rather than always one name per line.
+        let output = """
+        ==> Updating Homebrew...
+        Updated 2 taps (homebrew/core and homebrew/cask).
+        ==> New Formulae
+        foo-cli bar-tool
+        baz-lang
+        ==> New Casks
+        some-app
+        ==> Outdated Formulae
+        git
+        """
+
+        let (formulae, casks) = BrewService.parseNewPackages(from: output)
+        XCTAssertEqual(formulae, ["foo-cli", "bar-tool", "baz-lang"])
+        XCTAssertEqual(casks, ["some-app"])
+    }
+
+    func testParseNewPackagesWhenUpToDate() {
+        let output = """
+        ==> Updating Homebrew...
+        Already up-to-date.
+        """
+        let (formulae, casks) = BrewService.parseNewPackages(from: output)
+        XCTAssertTrue(formulae.isEmpty)
+        XCTAssertTrue(casks.isEmpty)
+    }
 }

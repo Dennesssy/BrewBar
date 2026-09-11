@@ -3,6 +3,7 @@ import BrewBarKit
 
 public struct DiscoverView: View {
     @StateObject private var viewModel = DiscoverViewModel()
+    @ObservedObject private var catalog = HomebrewCatalogService.shared
 
     public init() {}
 
@@ -11,13 +12,24 @@ public struct DiscoverView: View {
             VStack(alignment: .leading, spacing: 0) {
                 heroBanner
 
-                sectionDivider
-
-                PackageCarouselSection(title: "Editor's Picks", items: viewModel.editorsPicks)
-
-                ForEach(viewModel.categories) { category in
+                if catalog.isLoading && viewModel.trending.isEmpty {
+                    ProgressView("Loading the Homebrew catalog…")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 40)
+                } else {
                     sectionDivider
-                    PackageCarouselSection(title: category.name, items: category.items, category: category)
+
+                    if !viewModel.newThisWeek.isEmpty {
+                        PackageCarouselSection(title: "New This Week", items: viewModel.newThisWeek)
+                        sectionDivider
+                    }
+
+                    PackageCarouselSection(title: "Trending", items: viewModel.trending)
+
+                    ForEach(viewModel.categories) { category in
+                        sectionDivider
+                        PackageCarouselSection(title: category.name, items: category.items, category: category)
+                    }
                 }
             }
             .padding(.horizontal)
@@ -30,6 +42,7 @@ public struct DiscoverView: View {
             // Installed/Updates.
             try? await BrewService.shared.refreshInstalledPackages()
             try? await BrewService.shared.checkForUpdates()
+            await viewModel.load()
         }
     }
 
@@ -47,13 +60,20 @@ public struct DiscoverView: View {
             Text("Find your next essential tool")
                 .font(.largeTitle)
                 .bold()
-            Text("Curated formulas and casks worth installing, grouped by what you're trying to get done.")
+            Text(heroSubtitle)
                 .font(.body)
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
         .glassEffect(.regular.tint(Color.accentColor.opacity(0.4)), in: .rect(cornerRadius: 16))
+    }
+
+    private var heroSubtitle: String {
+        guard viewModel.totalAvailableCount > 0 else {
+            return "Real formulas and casks worth installing, grouped by what you're trying to get done."
+        }
+        return "\(viewModel.totalAvailableCount.formatted()) formulas and casks available, grouped by what you're trying to get done."
     }
 }
 

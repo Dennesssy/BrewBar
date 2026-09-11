@@ -11,6 +11,10 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var lastHomebrewUpdate: Date?
     @Published public private(set) var isUpdatingHomebrew: Bool = false
     @Published public private(set) var isCleaningUp: Bool = false
+    /// Formula/cask names `brew update` reported under "==> New Formulae" /
+    /// "==> New Casks" on the most recent update — real output, not curated.
+    @Published public private(set) var newFormulaNames: [String] = []
+    @Published public private(set) var newCaskNames: [String] = []
 
     private let processManager = ProcessManager()
     private let outputParser = OutputParser()
@@ -180,7 +184,10 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).update()
 
         do {
-            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let (newFormulae, newCasks) = Self.parseNewPackages(from: output)
+            self.newFormulaNames = newFormulae
+            self.newCaskNames = newCasks
             self.lastHomebrewUpdate = Date()
             self.lastError = nil
             try await checkForUpdates()
@@ -287,5 +294,37 @@ public final class BrewService: ObservableObject {
     private func validateFormulaName(_ name: String) -> Bool {
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
         return name.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
+    /// `brew update` prints "==> New Formulae" / "==> New Casks" headers
+    /// followed by names until the next "==>" section (Homebrew wraps long
+    /// lists across multiple whitespace-separated lines rather than always
+    /// one name per line, so this splits on whitespace rather than assuming
+    /// one name per line).
+    nonisolated static func parseNewPackages(from output: String) -> (formulae: [String], casks: [String]) {
+        var formulae: [String] = []
+        var casks: [String] = []
+        var currentSection: String?
+
+        for line in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("==>") {
+                let header = trimmed.dropFirst(3).trimmingCharacters(in: .whitespaces)
+                currentSection = header
+                continue
+            }
+            guard !trimmed.isEmpty else { continue }
+
+            switch currentSection {
+            case "New Formulae":
+                formulae.append(contentsOf: trimmed.split(separator: " ").map(String.init))
+            case "New Casks":
+                casks.append(contentsOf: trimmed.split(separator: " ").map(String.init))
+            default:
+                continue
+            }
+        }
+
+        return (formulae, casks)
     }
 }

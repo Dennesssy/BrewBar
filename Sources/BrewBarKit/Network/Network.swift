@@ -9,6 +9,18 @@ public actor HTTPClient {
     }
 
     public func request<T: Decodable>(_ url: URL, headers: [String: String] = [:]) async throws -> T {
+        let data = try await fetchRawData(url, headers: headers)
+        do {
+            let decoder = JSONDecoder()
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw BrewBarError.parseError("Failed to decode HTTP response: \(error.localizedDescription)")
+        }
+    }
+
+    /// Raw bytes, so callers that need to cache the response to disk (e.g. a
+    /// large catalog payload) aren't forced to re-encode a decoded value.
+    public func fetchRawData(_ url: URL, headers: [String: String] = [:]) async throws -> Data {
         var request = URLRequest(url: url)
         for (key, value) in headers {
             request.setValue(value, forHTTPHeaderField: key)
@@ -24,12 +36,7 @@ public actor HTTPClient {
             throw BrewBarError.networkError("HTTP status code \(httpResponse.statusCode)")
         }
 
-        do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw BrewBarError.parseError("Failed to decode HTTP response: \(error.localizedDescription)")
-        }
+        return data
     }
 }
 

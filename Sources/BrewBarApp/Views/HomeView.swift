@@ -17,9 +17,15 @@ public struct HomeView: View {
                     PackageCarouselSection(title: "Recently Installed", items: viewModel.recentlyUpdated)
                 }
 
-                PackageCarouselSection(title: "Featured Packages", items: viewModel.featured)
+                if viewModel.isLoading && viewModel.featured.isEmpty {
+                    ProgressView("Loading the Homebrew catalog…")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 40)
+                } else {
+                    PackageCarouselSection(title: "Featured Packages", items: viewModel.featured)
 
-                PackageCarouselSection(title: "Recommended for You", items: viewModel.recommended)
+                    PackageCarouselSection(title: "Recommended for You", items: viewModel.recommended)
+                }
             }
             .padding()
         }
@@ -27,7 +33,7 @@ public struct HomeView: View {
         .task {
             try? await BrewService.shared.checkForUpdates()
             try? await BrewService.shared.refreshInstalledPackages()
-            viewModel.loadData()
+            await viewModel.loadData()
             await ServicesManager.shared.refresh()
         }
     }
