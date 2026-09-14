@@ -4,12 +4,38 @@ import BrewBarKit
 @main
 struct BrewBarApp: App {
     @StateObject private var searchState = AppSearchState()
+    @StateObject private var preferencesViewModel = PreferencesViewModel()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(searchState)
         }
+        
+        MenuBarExtra("BrewBar", systemImage: "mug.fill", isInserted: $preferencesViewModel.preferences.showMenuBarIcon) {
+            Button("Open BrewBar") {
+                NSApp.activate(ignoringOtherApps: true)
+                for window in NSApplication.shared.windows {
+                    window.makeKeyAndOrderFront(nil)
+                }
+            }
+            Divider()
+            Button("Check for Updates") {
+                Task {
+                    try? await BrewService.shared.checkForUpdates()
+                }
+            }
+            Button("Update All Packages") {
+                Task {
+                    try? await BrewService.shared.upgradeAll()
+                }
+            }
+            Divider()
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
+            }
+        }
+        .menuBarExtraStyle(.menu)
     }
 }
 
@@ -35,6 +61,7 @@ struct ContentView: View {
         case services = "Services"
         case search = "Search"
         case settings = "Settings"
+        case about = "About"
 
         var id: String { rawValue }
 
@@ -54,6 +81,7 @@ struct ContentView: View {
             case .services: return "gearshape.2"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
+            case .about: return "info.circle"
             }
         }
     }
@@ -161,6 +189,8 @@ struct ContentView: View {
             SearchView()
         case .settings:
             PreferencesView()
+        case .about:
+            AboutView()
         }
     }
 }
