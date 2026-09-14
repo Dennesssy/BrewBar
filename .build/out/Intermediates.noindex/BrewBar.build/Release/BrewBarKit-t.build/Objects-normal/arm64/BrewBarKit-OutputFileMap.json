@@ -8,6 +8,11 @@
     "pch" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary-Bridging-header.pch",
     "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.swiftdeps"
   },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/HistoryRecord.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HistoryRecord.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HistoryRecord.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HistoryRecord.o"
+  },
   "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/PackageModels.swift" : {
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/PackageModels.o",
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/PackageModels.bc",
@@ -32,6 +37,11 @@
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Network.o",
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Network.bc",
     "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Network.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Persistence/HistoryStore.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.o"
   },
   "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Persistence/Persistence.swift" : {
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Persistence.o",

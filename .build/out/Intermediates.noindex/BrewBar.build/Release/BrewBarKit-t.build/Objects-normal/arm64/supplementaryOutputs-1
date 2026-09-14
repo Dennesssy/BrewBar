@@ -1,5 +1,5 @@
 {
-  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/PackageModels.swift" : {
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/HistoryRecord.swift" : {
     "abi-baseline-json" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit.abi.json",
     "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.swiftconstvalues",
     "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.d",

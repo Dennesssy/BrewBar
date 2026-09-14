@@ -23,6 +23,11 @@
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/DiscoverView.bc",
     "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/DiscoverView.o"
   },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarApp/Views/HistoryView.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HistoryView.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HistoryView.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HistoryView.o"
+  },
   "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarApp/Views/HomeView.swift" : {
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HomeView.o",
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HomeView.bc",
@@ -37,6 +42,11 @@
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/OtherViews.o",
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/OtherViews.bc",
     "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/OtherViews.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarApp/Views/SafariWebView.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/SafariWebView.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/SafariWebView.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/SafariWebView.o"
   },
   "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarApp/Views/ServicesView.swift" : {
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/ServicesView.o",

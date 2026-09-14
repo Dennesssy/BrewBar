@@ -37,7 +37,7 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name, type: type)
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
                 outputHandler: { [weak self] out in
@@ -46,6 +46,7 @@ public final class BrewService: ObservableObject {
             )
             self.lastError = nil
             try await refreshInstalledPackages()
+            await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "install", details: output) }
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
@@ -58,7 +59,7 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name, type: type)
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
                 outputHandler: { [weak self] out in
@@ -68,6 +69,7 @@ public final class BrewService: ObservableObject {
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
+            await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "upgrade", details: output) }
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
@@ -90,6 +92,7 @@ public final class BrewService: ObservableObject {
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
+            await MainActor.run { HistoryStore.shared.log(packageName: "All", packageType: "multiple", action: "upgradeAll") }
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
@@ -102,7 +105,7 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name, type: type)
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
                 outputHandler: { [weak self] out in
@@ -112,6 +115,7 @@ public final class BrewService: ObservableObject {
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
+            await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "uninstall", details: output) }
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled

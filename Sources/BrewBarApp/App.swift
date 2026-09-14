@@ -10,6 +10,7 @@ struct BrewBarApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(searchState)
+                .modelContainer(HistoryStore.shared.container)
         }
         
         MenuBarExtra("BrewBar", systemImage: "mug.fill", isInserted: $preferencesViewModel.preferences.showMenuBarIcon) {
@@ -59,6 +60,7 @@ struct ContentView: View {
         case installed = "Installed"
         case updates = "Updates"
         case services = "Services"
+        case history = "History"
         case search = "Search"
         case settings = "Settings"
         case about = "About"
@@ -79,6 +81,7 @@ struct ContentView: View {
             case .installed: return "shippingbox"
             case .updates: return "arrow.triangle.2.circlepath"
             case .services: return "gearshape.2"
+            case .history: return "clock"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
             case .about: return "info.circle"
@@ -197,6 +200,8 @@ struct ContentView: View {
             UpdatesView()
         case .services:
             ServicesView()
+        case .history:
+            HistoryView()
         case .search:
             SearchView()
         case .settings:
