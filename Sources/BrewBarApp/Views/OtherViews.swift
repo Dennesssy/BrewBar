@@ -23,7 +23,7 @@ public struct InstalledView: View {
 
             List(viewModel.filteredFormulas) { item in
                 HStack {
-                    Image(systemName: item.type == .cask ? "desktopcomputer" : "terminal")
+                    IconView(item: item, size: 36)
                     VStack(alignment: .leading) {
                         Text(item.name).font(.headline)
                         Text(item.description).font(.subheadline).foregroundColor(.secondary)
@@ -161,20 +161,7 @@ public struct FormulaDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 // Header: icon, title, developer/homepage, install button
                 HStack(alignment: .top, spacing: 16) {
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Image(systemName: viewModel.formula.type == .cask ? "desktopcomputer" : "terminal")
-                                .font(.system(size: 34))
-                                .foregroundColor(.white)
-                        )
+                    IconView(item: viewModel.formula, size: 80)
                         .shadow(color: .black.opacity(0.25), radius: 5, y: 3)
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -220,6 +207,9 @@ public struct FormulaDetailView: View {
                     if let size = viewModel.formula.sizeInBytes {
                         metadataColumn(label: "SIZE", value: ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
                     }
+                    if let stars = viewModel.githubStars {
+                        metadataColumn(label: "STARS ⭐️", value: "\(stars)")
+                    }
                 }
 
                 Divider()
@@ -227,8 +217,18 @@ public struct FormulaDetailView: View {
                 Text("Description")
                     .font(.title2)
                     .bold()
-                Text(viewModel.formula.description)
-                    .font(.body)
+                
+                if let readme = viewModel.githubReadme {
+                    Text(LocalizedStringKey(readme))
+                        .font(.body)
+                } else {
+                    Text(viewModel.formula.description)
+                        .font(.body)
+                    if viewModel.isFetchingDetails {
+                        ProgressView()
+                            .padding(.top, 8)
+                    }
+                }
 
                 if !viewModel.formula.dependencies.isEmpty {
                     Divider()
@@ -262,6 +262,9 @@ public struct FormulaDetailView: View {
             .padding()
         }
         .navigationTitle(viewModel.formula.name)
+        .onAppear {
+            viewModel.fetchRichDetailsIfNeeded()
+        }
     }
 
     @ViewBuilder

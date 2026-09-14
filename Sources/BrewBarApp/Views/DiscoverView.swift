@@ -144,20 +144,7 @@ public struct DiscoverPackageCardView: View {
         NavigationLink(destination: FormulaDetailView(formula: item)) {
             VStack(alignment: .leading, spacing: 10) {
                 ZStack(alignment: .topTrailing) {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 64, height: 64)
-                        .overlay(
-                            Image(systemName: item.type == .cask ? "desktopcomputer" : "terminal")
-                                .font(.system(size: 28))
-                                .foregroundColor(.white)
-                        )
+                    IconView(item: item, size: 64)
                         .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
 
                     statusBadge
@@ -242,7 +229,7 @@ public struct PackageListView: View {
         List(items) { item in
             NavigationLink(destination: FormulaDetailView(formula: item)) {
                 HStack {
-                    Image(systemName: item.type == .cask ? "desktopcomputer" : "terminal")
+                    IconView(item: item, size: 36)
                     VStack(alignment: .leading) {
                         Text(item.fullTitle ?? item.name).font(.headline)
                         Text(item.description).font(.subheadline).foregroundColor(.secondary)

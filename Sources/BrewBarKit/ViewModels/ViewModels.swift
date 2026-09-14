@@ -128,9 +128,52 @@ public final class SearchViewModel: ObservableObject {
 @MainActor
 public final class FormulaDetailViewModel: ObservableObject {
     @Published public var formula: FormulaItem
+    @Published public var githubStars: Int?
+    @Published public var githubReadme: String?
+    @Published public var isFetchingDetails = false
 
     public init(formula: FormulaItem) {
         self.formula = formula
+    }
+
+    public func fetchRichDetailsIfNeeded() {
+        guard githubStars == nil && !isFetchingDetails else { return }
+        
+        // Extract owner/repo from homepage or repository if it's GitHub
+        var repoPath: String?
+        if let homepage = formula.homepage, homepage.contains("github.com") {
+            let parts = URL(string: homepage)?.pathComponents.filter { $0 != "/" } ?? []
+            if parts.count >= 2 {
+                repoPath = "\(parts[0])/\(parts[1])"
+            }
+        }
+        
+        guard let targetRepo = repoPath else { return }
+        isFetchingDetails = true
+        
+        Task {
+            // Fetch Stars
+            if let url = URL(string: "https://api.github.com/repos/\(targetRepo)"),
+               let (data, _) = try? await URLSession.shared.data(from: url),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let stars = json["stargazers_count"] as? Int {
+                DispatchQueue.main.async { self.githubStars = stars }
+            }
+            
+            // Fetch Readme
+            if let url = URL(string: "https://api.github.com/repos/\(targetRepo)/readme"),
+               let (data, _) = try? await URLSession.shared.data(from: url),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let content = json["content"] as? String {
+                let cleanedContent = content.replacingOccurrences(of: "\n", with: "")
+                if let decodedData = Data(base64Encoded: cleanedContent),
+                   let readmeString = String(data: decodedData, encoding: .utf8) {
+                    DispatchQueue.main.async { self.githubReadme = readmeString }
+                }
+            }
+            
+            DispatchQueue.main.async { self.isFetchingDetails = false }
+        }
     }
 
     /// Installs the formula, or upgrades it if it's already installed with
