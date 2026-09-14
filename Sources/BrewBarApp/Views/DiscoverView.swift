@@ -73,42 +73,47 @@ public struct DiscoverView: View {
                 .glassEffect(.regular.tint(Color.accentColor.opacity(0.4)), in: .rect(cornerRadius: 16))
                 .padding(.top)
             } else {
-                TabView {
-                    ForEach(heroItems) { item in
-                        NavigationLink(destination: FormulaDetailView(formula: item)) {
-                            HStack(spacing: 24) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("FEATURED")
-                                        .font(.caption)
-                                        .bold()
-                                        .foregroundColor(.accentColor)
-                                    
-                                    Text(item.fullTitle ?? item.name)
-                                        .font(.largeTitle)
-                                        .bold()
-                                        .foregroundColor(.primary)
-                                    
-                                    Text(item.description)
-                                        .font(.title3)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(heroItems) { item in
+                            NavigationLink(destination: FormulaDetailView(formula: item)) {
+                                HStack(spacing: 24) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("FEATURED")
+                                            .font(.caption)
+                                            .bold()
+                                            .foregroundColor(.accentColor)
+                                        
+                                        Text(item.fullTitle ?? item.name)
+                                            .font(.largeTitle)
+                                            .bold()
+                                            .foregroundColor(.primary)
+                                        
+                                        Text(item.description)
+                                            .font(.title3)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    Spacer()
+                                    IconView(item: item, size: 120)
+                                        .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
                                 }
-                                Spacer()
-                                IconView(item: item, size: 120)
-                                    .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                                .padding(40)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(
+                                    LinearGradient(colors: [Color.accentColor.opacity(0.2), Color.accentColor.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 24))
+                                .padding(.horizontal, 24)
                             }
-                            .padding(40)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(
-                                LinearGradient(colors: [Color.accentColor.opacity(0.2), Color.accentColor.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .buttonStyle(.plain)
+                            .containerRelativeFrame(.horizontal)
                         }
-                        .buttonStyle(.plain)
                     }
+                    .scrollTargetLayout()
                 }
-                .tabViewStyle(.page)
+                .scrollTargetBehavior(.paging)
                 .frame(height: 250)
                 .padding(.top)
             }
@@ -217,14 +222,14 @@ public struct DiscoverPackageCardView: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            if let url = URL(string: item.url) {
+            if let homepage = item.homepage, let url = URL(string: homepage) {
                 ShareLink(item: url) {
                     Label("Share Package", systemImage: "square.and.arrow.up")
                 }
                 
                 Button {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(item.url, forType: .string)
+                    NSPasteboard.general.setString(homepage, forType: .string)
                 } label: {
                     Label("Copy URL", systemImage: "link")
                 }
