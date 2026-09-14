@@ -21,13 +21,13 @@
           "targetArchitecture" : "arm64"
         },
         "arenaInfo" : {
-          "buildIntermediatesPath" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex",
-          "buildProductsPath" : "/Users/denn/Documents/Development/BrewBar/.build/out/Products",
-          "derivedDataPath" : "/Users/denn/Documents/Development/BrewBar/.build/out",
-          "indexDataStoreFolderPath" : "/Users/denn/Documents/Development/BrewBar/.build/out",
+          "buildIntermediatesPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex",
+          "buildProductsPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Products",
+          "derivedDataPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out",
+          "indexDataStoreFolderPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out",
           "indexEnableDataStore" : false,
-          "indexPCHPath" : "/Users/denn/Documents/Development/BrewBar/.build/out",
-          "pchPath" : "/Users/denn/Documents/Development/BrewBar/.build/out/PCH"
+          "indexPCHPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out",
+          "pchPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/PCH"
         },
         "configurationName" : "Release",
         "overrides" : {
@@ -78,13 +78,13 @@
       "targetArchitecture" : "arm64"
     },
     "arenaInfo" : {
-      "buildIntermediatesPath" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex",
-      "buildProductsPath" : "/Users/denn/Documents/Development/BrewBar/.build/out/Products",
-      "derivedDataPath" : "/Users/denn/Documents/Development/BrewBar/.build/out",
-      "indexDataStoreFolderPath" : "/Users/denn/Documents/Development/BrewBar/.build/out",
+      "buildIntermediatesPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex",
+      "buildProductsPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Products",
+      "derivedDataPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out",
+      "indexDataStoreFolderPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out",
       "indexEnableDataStore" : false,
-      "indexPCHPath" : "/Users/denn/Documents/Development/BrewBar/.build/out",
-      "pchPath" : "/Users/denn/Documents/Development/BrewBar/.build/out/PCH"
+      "indexPCHPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out",
+      "pchPath" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/PCH"
     },
     "configurationName" : "Release",
     "overrides" : {

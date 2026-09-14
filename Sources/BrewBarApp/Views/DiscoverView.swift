@@ -52,21 +52,67 @@ public struct DiscoverView: View {
     }
 
     private var heroBanner: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("DISCOVER")
-                .font(.caption)
-                .bold()
-                .foregroundColor(.secondary)
-            Text("Find your next essential tool")
-                .font(.largeTitle)
-                .bold()
-            Text(heroSubtitle)
-                .font(.body)
-                .foregroundColor(.secondary)
+        let heroItems = Array(viewModel.trending.prefix(5))
+        
+        return Group {
+            if heroItems.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("DISCOVER")
+                        .font(.caption)
+                        .bold()
+                        .foregroundColor(.secondary)
+                    Text("Find your next essential tool")
+                        .font(.largeTitle)
+                        .bold()
+                    Text(heroSubtitle)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
+                .glassEffect(.regular.tint(Color.accentColor.opacity(0.4)), in: .rect(cornerRadius: 16))
+                .padding(.top)
+            } else {
+                TabView {
+                    ForEach(heroItems) { item in
+                        NavigationLink(destination: FormulaDetailView(formula: item)) {
+                            HStack(spacing: 24) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("FEATURED")
+                                        .font(.caption)
+                                        .bold()
+                                        .foregroundColor(.accentColor)
+                                    
+                                    Text(item.fullTitle ?? item.name)
+                                        .font(.largeTitle)
+                                        .bold()
+                                        .foregroundColor(.primary)
+                                    
+                                    Text(item.description)
+                                        .font(.title3)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Spacer()
+                                IconView(item: item, size: 120)
+                                    .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                            }
+                            .padding(40)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(
+                                LinearGradient(colors: [Color.accentColor.opacity(0.2), Color.accentColor.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .tabViewStyle(.page)
+                .frame(height: 250)
+                .padding(.top)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
-        .glassEffect(.regular.tint(Color.accentColor.opacity(0.4)), in: .rect(cornerRadius: 16))
     }
 
     private var heroSubtitle: String {
@@ -170,6 +216,41 @@ public struct DiscoverPackageCardView: View {
             .glassEffect(.regular, in: .rect(cornerRadius: 14))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if let url = URL(string: item.url) {
+                ShareLink(item: url) {
+                    Label("Share Package", systemImage: "square.and.arrow.up")
+                }
+                
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(item.url, forType: .string)
+                } label: {
+                    Label("Copy URL", systemImage: "link")
+                }
+                Divider()
+            }
+            
+            if status == .notInstalled {
+                Button {
+                    Task { try? await BrewService.shared.installFormula(item.id, type: item.type) }
+                } label: {
+                    Label("Install", systemImage: "square.and.arrow.down")
+                }
+            } else if status == .updateAvailable {
+                Button {
+                    Task { try? await BrewService.shared.upgradeFormula(item.id, type: item.type) }
+                } label: {
+                    Label("Update", systemImage: "arrow.triangle.2.circlepath")
+                }
+            } else {
+                Button(role: .destructive) {
+                    Task { try? await BrewService.shared.uninstallFormula(item.id, type: item.type) }
+                } label: {
+                    Label("Uninstall", systemImage: "trash")
+                }
+            }
+        }
     }
 
     @ViewBuilder

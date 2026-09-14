@@ -300,6 +300,19 @@ public struct PreferencesView: View {
                 TextField("Homebrew Path", text: $viewModel.preferences.homebrewPrefix)
             }
             
+            Section("Privacy") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Button("Opt-out of Homebrew Analytics") {
+                        Task {
+                            try? await BrewService.shared.setAnalytics(enabled: false)
+                        }
+                    }
+                    Text("Homebrew sends telemetry by default. Clicking this turns it off entirely via `brew analytics off`.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
             Section("GitHub Integration") {
                 SecureField("GitHub Personal Access Token", text: $viewModel.githubToken)
                     .onChange(of: viewModel.githubToken) { _, newValue in

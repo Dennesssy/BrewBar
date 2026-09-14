@@ -1,0 +1,101 @@
+{
+  "" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.dia",
+    "emit-module-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary-emit-module.dia",
+    "pch" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewBarKit-primary.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/PackageModels.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/PackageModels.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/PackageModels.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/PackageModels.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/RepositoryModels.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/RepositoryModels.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/RepositoryModels.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/RepositoryModels.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/StateModels.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/StateModels.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/StateModels.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/StateModels.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/UserModels.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/UserModels.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/UserModels.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/UserModels.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Network/Network.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Network.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Network.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Network.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Persistence/Persistence.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Persistence.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Persistence.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Persistence.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/BrewService+Progress.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/BrewService.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/HomebrewCatalogService.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/OtherServices.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/SpotlightAndSemanticSearch.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/SpotlightAndSemanticSearch.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/SpotlightAndSemanticSearch.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/SpotlightAndSemanticSearch.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Utilities/BrewCommandBuilder.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewCommandBuilder.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewCommandBuilder.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewCommandBuilder.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Utilities/ErrorHandler.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ErrorHandler.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ErrorHandler.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ErrorHandler.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Utilities/HomebrewPath.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HomebrewPath.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HomebrewPath.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/HomebrewPath.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Utilities/LoggerAndVersion.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/LoggerAndVersion.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/LoggerAndVersion.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/LoggerAndVersion.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Utilities/OutputParser.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/OutputParser.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/OutputParser.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/OutputParser.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Utilities/ProcessManager.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ProcessManager.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ProcessManager.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ProcessManager.o"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/ViewModels/ViewModels.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ViewModels.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ViewModels.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/ViewModels.o"
+  }
+}

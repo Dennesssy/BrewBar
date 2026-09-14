@@ -380,3 +380,11 @@ public final class BrewService: ObservableObject {
         return (formulae, casks)
     }
 }
+
+extension BrewService {
+    public func setAnalytics(enabled: Bool) async throws {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).analytics(enabled: enabled)
+        _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+    }
+}

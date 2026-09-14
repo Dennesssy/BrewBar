@@ -5,11 +5,11 @@
       "name" : "BrewBar",
       "path" : "/Users/denn/Desktop/Xcode/BrewBar",
       "projects" : [
-        "b913fd6c4ae218ba7e97929344e3311c983eada1551b92a11e367641ec4255e9",
+        "5187c4c7bf28513f0288e8f258e29e9fcb375ffc6710d06ecfc9dcea105b338f",
         "61228d8801c65621ed018e41dce048465297470ed602427b847d49b50e195a7a"
       ]
     },
-    "signature" : "f7f952a247a2d446e67e561b5a35537b5fc0e5178f0a8e4783914ca36f4673b6",
+    "signature" : "dc908c34f1fda7c9a707525ae6f40295ddec22334276449f51ba48fc329c87ea",
     "type" : "workspace"
   },
   {
@@ -226,6 +226,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_1",
+                "name" : "Views/AboutView.swift",
+                "path" : "Views/AboutView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_2",
                 "name" : "Views/DiscoverView.swift",
                 "path" : "Views/DiscoverView.swift",
                 "sourceTree" : "<group>",
@@ -233,7 +241,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_2",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_3",
                 "name" : "Views/HomeView.swift",
                 "path" : "Views/HomeView.swift",
                 "sourceTree" : "<group>",
@@ -241,7 +249,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_3",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_4",
                 "name" : "Views/IconView.swift",
                 "path" : "Views/IconView.swift",
                 "sourceTree" : "<group>",
@@ -249,7 +257,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_4",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_5",
                 "name" : "Views/OtherViews.swift",
                 "path" : "Views/OtherViews.swift",
                 "sourceTree" : "<group>",
@@ -257,7 +265,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_5",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_6",
                 "name" : "Views/ServicesView.swift",
                 "path" : "Views/ServicesView.swift",
                 "sourceTree" : "<group>",
@@ -589,6 +597,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_1",
+                "name" : "Views/AboutView.swift",
+                "path" : "Views/AboutView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_2",
                 "name" : "Views/DiscoverView.swift",
                 "path" : "Views/DiscoverView.swift",
                 "sourceTree" : "<group>",
@@ -596,7 +612,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_2",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_3",
                 "name" : "Views/HomeView.swift",
                 "path" : "Views/HomeView.swift",
                 "sourceTree" : "<group>",
@@ -604,7 +620,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_3",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_4",
                 "name" : "Views/IconView.swift",
                 "path" : "Views/IconView.swift",
                 "sourceTree" : "<group>",
@@ -612,7 +628,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_4",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_5",
                 "name" : "Views/OtherViews.swift",
                 "path" : "Views/OtherViews.swift",
                 "sourceTree" : "<group>",
@@ -620,7 +636,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_5",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_6",
                 "name" : "Views/ServicesView.swift",
                 "path" : "Views/ServicesView.swift",
                 "sourceTree" : "<group>",
@@ -649,14 +665,14 @@
         "b57a9d30610b2335d0c2992f37bb64ca878d58b207bd660fecbea5cf4778fba1",
         "ba69b3a674d828fd12de1474d42fe4b625d47e7f81990747bec8b8a9c49c2293",
         "d60e0f0600f47e1c6a46cd322d0206e02af7b7df94f5cac8bb6743c05b404251",
-        "f08c5f9f553228d475354b3675610c1902665c6073ba02e9d35e8a707896d720",
+        "02ae42fdcfebe46c89a39e086873b3f84b3a5aa0c14ebe5d7c3c1f710bcb7035",
         "7ee5335235e17d367bf2aa895c24f26150cb583f7ad0d3f1a29fd6875f229623",
         "99528d5251d64ce74dc3b04a826333b9bd32ce41f5347589bedc208a5503814e",
-        "4ad4d30e06db8497c499562779a0a4543ac1ff1e89aec43ca71e793781114c30",
+        "846770e54ff42379957e71f58e9831f1cbedc51c6f92c1759c57bd88813d892a",
         "90829299895e3376c3d7891078d65d074840e394e6bc953c360202677ad431d6"
       ]
     },
-    "signature" : "b913fd6c4ae218ba7e97929344e3311c983eada1551b92a11e367641ec4255e9",
+    "signature" : "5187c4c7bf28513f0288e8f258e29e9fcb375ffc6710d06ecfc9dcea105b338f",
     "type" : "project"
   },
   {
@@ -1192,6 +1208,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_6",
+              "guid" : "PACKAGE-PRODUCT:brewbar_BrewBar.BrewBar::BUILDPHASE_0::6",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-PRODUCT:brewbar_BrewBar.BrewBar::BUILDPHASE_0",
@@ -1235,7 +1260,7 @@
       "productTypeIdentifier" : "com.apple.product-type.tool",
       "type" : "standard"
     },
-    "signature" : "f08c5f9f553228d475354b3675610c1902665c6073ba02e9d35e8a707896d720",
+    "signature" : "02ae42fdcfebe46c89a39e086873b3f84b3a5aa0c14ebe5d7c3c1f710bcb7035",
     "type" : "target"
   },
   {
@@ -1741,6 +1766,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_6",
+              "guid" : "PACKAGE-TARGET:BrewBarApp--28FEC89CCE06D330-testable::BUILDPHASE_0::6",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-TARGET:BrewBarApp--28FEC89CCE06D330-testable::BUILDPHASE_0",
@@ -1771,7 +1805,7 @@
       "productTypeIdentifier" : "org.swift.product-type.common.object",
       "type" : "standard"
     },
-    "signature" : "4ad4d30e06db8497c499562779a0a4543ac1ff1e89aec43ca71e793781114c30",
+    "signature" : "846770e54ff42379957e71f58e9831f1cbedc51c6f92c1759c57bd88813d892a",
     "type" : "target"
   },
   {

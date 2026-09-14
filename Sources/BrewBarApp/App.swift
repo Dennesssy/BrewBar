@@ -156,6 +156,16 @@ struct ContentView: View {
                 .animation(.easeInOut, value: brewService.activeTaskMessage != nil)
             }
         }
+        .background(
+            Button("Refresh") {
+                Task {
+                    try? await BrewService.shared.refreshInstalledPackages()
+                    try? await BrewService.shared.checkForUpdates()
+                }
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .hidden()
+        )
     }
 
     /// Real counts only — a badge of 0 renders nothing, so idle rows stay

@@ -81,6 +81,13 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
+    public func analytics(enabled: Bool) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "analytics"
+        copy.arguments = [enabled ? "on" : "off"]
+        return copy
+    }
+
     public func info(_ formula: String, json: Bool = true) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "info"
