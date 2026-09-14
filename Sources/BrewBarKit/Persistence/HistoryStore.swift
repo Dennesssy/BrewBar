@@ -15,7 +15,7 @@ public struct HistoryStore {
     }
     
     public func log(packageName: String, packageType: String, action: String, version: String? = nil, details: String? = nil) {
-        let context = ModelContext(container)
+        let context = container.mainContext
         let record = HistoryRecord(packageName: packageName, packageType: packageType, action: action, version: version, details: details)
         context.insert(record)
         try? context.save()

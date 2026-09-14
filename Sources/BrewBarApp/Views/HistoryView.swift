@@ -37,6 +37,20 @@ public struct HistoryView: View {
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
+                            
+                            if let details = record.details, !details.isEmpty {
+                                DisclosureGroup("Terminal Output") {
+                                    Text(details)
+                                        .font(.system(.caption2, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(8)
+                                        .background(Color(NSColor.windowBackgroundColor))
+                                        .cornerRadius(4)
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            }
                         }
                         .padding(.vertical, 4)
                     }

@@ -1,0 +1,23 @@
+{
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/StateModels.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/StateModels.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/StateModels.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/StateModels.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/StateModels.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/StateModels.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Models/UserModels.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/UserModels.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/UserModels.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/UserModels.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/UserModels.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/UserModels.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Network/Network.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Network.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Network.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Network.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Network.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Network.swiftdeps"
+  }
+}

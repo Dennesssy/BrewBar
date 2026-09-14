@@ -1,0 +1,23 @@
+{
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Persistence/HistoryStore.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HistoryStore.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Persistence/Persistence.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Persistence.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Persistence.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Persistence.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Persistence.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/Persistence.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/BrewService+Progress.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.swiftdeps"
+  }
+}

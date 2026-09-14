@@ -1,0 +1,23 @@
+{
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/BrewService.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/BrewService.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/HomebrewCatalogService.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/HomebrewCatalogService.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/OtherServices.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.dia",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarKit-t.build/Objects-normal/arm64/OtherServices.swiftdeps"
+  }
+}

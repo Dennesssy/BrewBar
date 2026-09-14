@@ -225,11 +225,11 @@ public final class FormulaDetailViewModel: ObservableObject {
 
         // Fallback to --help
         do {
-            let output = try await processManager.execute(executablePath: HomebrewPath.defaultBrewExecutable, arguments: ["--help"])
+            _ = try await processManager.execute(executablePath: HomebrewPath.defaultBrewExecutable, arguments: ["--help"])
             // Wait, we want the formula's help, not brew's help.
             // If it's installed, we could try running it: `formula.name --help`
             // But we don't know the exact binary path. We could try using bash.
-            let binOutput = try await processManager.execute(executablePath: "/bin/bash", arguments: ["-c", "\(formula.name) --help"])
+            let binOutput = try await processManager.execute(executablePath: "/bin/bash", arguments: ["-c", "\"$0\" --help", formula.name])
             if !binOutput.isEmpty {
                 DispatchQueue.main.async { self.manPage = binOutput }
             }
