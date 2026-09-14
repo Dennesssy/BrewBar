@@ -285,6 +285,7 @@ public struct PreferencesView: View {
     @State private var showCleanupConfirmation = false
     @State private var cleanupResult: String?
     @State private var updateError: String?
+    @State private var doctorResult: String?
 
     public init() {}
 
@@ -367,6 +368,38 @@ public struct PreferencesView: View {
                         Text(cleanupResult)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Brew Doctor")
+                            Text("Checks your system for potential Homebrew problems.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button(brewService.isRunningDoctor ? "Checking…" : "Run Doctor") {
+                            Task {
+                                do {
+                                    doctorResult = try await brewService.doctor()
+                                } catch {
+                                    doctorResult = "Doctor failed: \(error.localizedDescription)"
+                                }
+                            }
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(brewService.isRunningDoctor)
+                    }
+
+                    if let doctorResult, !doctorResult.isEmpty {
+                        ScrollView {
+                            Text(doctorResult)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 120)
                     }
                 }
             }

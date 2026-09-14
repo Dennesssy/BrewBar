@@ -107,6 +107,12 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
+    public func doctor() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "doctor"
+        return copy
+    }
+
     /// `brew update` refreshes Homebrew itself and tap metadata (formula/cask
     /// definitions) — this should run before `brew outdated` to avoid
     /// reporting staleness against out-of-date tap data.

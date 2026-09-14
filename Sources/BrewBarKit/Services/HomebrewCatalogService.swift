@@ -8,6 +8,8 @@ public struct CatalogFormula: Codable, Sendable {
     public let homepage: String?
     public let license: String?
     public let versions: CatalogVersions?
+    public let deprecated: Bool?
+    public let disabled: Bool?
 
     public struct CatalogVersions: Codable, Sendable {
         public let stable: String?
@@ -21,6 +23,8 @@ public struct CatalogCask: Codable, Sendable {
     public let desc: String?
     public let homepage: String?
     public let version: String?
+    public let deprecated: Bool?
+    public let disabled: Bool?
 }
 
 /// Matches `formulae.brew.sh/api/analytics/install/30d.json` and
@@ -96,6 +100,7 @@ public final class HomebrewCatalogService: ObservableObject {
             var map: [String: FormulaItem] = [:]
             map.reserveCapacity(formulaList.count)
             for f in formulaList {
+                if f.deprecated == true || f.disabled == true { continue }
                 map[f.name] = FormulaItem(
                     id: f.name,
                     name: f.name,
@@ -117,6 +122,7 @@ public final class HomebrewCatalogService: ObservableObject {
             var map: [String: FormulaItem] = [:]
             map.reserveCapacity(caskList.count)
             for c in caskList {
+                if c.deprecated == true || c.disabled == true { continue }
                 map[c.token] = FormulaItem(
                     id: c.token,
                     name: c.name?.first ?? c.token,

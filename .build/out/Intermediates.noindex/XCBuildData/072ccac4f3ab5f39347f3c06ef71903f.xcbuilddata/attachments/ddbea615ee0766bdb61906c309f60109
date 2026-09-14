@@ -1,0 +1,36 @@
+{
+  "" : {
+    "const-values" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.swiftconstvalues",
+    "dependencies" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.d",
+    "diagnostics" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.dia",
+    "emit-module-dependencies" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary-emit-module.dia",
+    "pch" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.swiftdeps"
+  },
+  "/Users/denn/Documents/Development/BrewBar/Sources/BrewBarApp/App.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/App.o",
+    "llvm-bc" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/App.bc",
+    "object" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/App.o"
+  },
+  "/Users/denn/Documents/Development/BrewBar/Sources/BrewBarApp/Views/DiscoverView.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/DiscoverView.o",
+    "llvm-bc" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/DiscoverView.bc",
+    "object" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/DiscoverView.o"
+  },
+  "/Users/denn/Documents/Development/BrewBar/Sources/BrewBarApp/Views/HomeView.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HomeView.o",
+    "llvm-bc" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HomeView.bc",
+    "object" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/HomeView.o"
+  },
+  "/Users/denn/Documents/Development/BrewBar/Sources/BrewBarApp/Views/OtherViews.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/OtherViews.o",
+    "llvm-bc" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/OtherViews.bc",
+    "object" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/OtherViews.o"
+  },
+  "/Users/denn/Documents/Development/BrewBar/Sources/BrewBarApp/Views/ServicesView.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/ServicesView.o",
+    "llvm-bc" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/ServicesView.bc",
+    "object" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/ServicesView.o"
+  }
+}

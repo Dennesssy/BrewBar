@@ -11,6 +11,7 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var lastHomebrewUpdate: Date?
     @Published public private(set) var isUpdatingHomebrew: Bool = false
     @Published public private(set) var isCleaningUp: Bool = false
+    @Published public private(set) var isRunningDoctor: Bool = false
     /// Formula/cask names `brew update` reported under "==> New Formulae" /
     /// "==> New Casks" on the most recent update — real output, not curated.
     @Published public private(set) var newFormulaNames: [String] = []
@@ -214,6 +215,25 @@ public final class BrewService: ObservableObject {
             if !dryRun {
                 try await refreshInstalledPackages()
             }
+            return output
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    @discardableResult
+    public func doctor() async throws -> String {
+        isRunningDoctor = true
+        defer { isRunningDoctor = false }
+
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).doctor()
+
+        do {
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            self.lastError = nil
             return output
         } catch {
             let handled = errorHandler.handle(error)

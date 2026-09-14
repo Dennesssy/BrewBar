@@ -1,0 +1,4 @@
+module BrewBarKit {
+header "BrewBarKit-Swift.h"
+export *
+}

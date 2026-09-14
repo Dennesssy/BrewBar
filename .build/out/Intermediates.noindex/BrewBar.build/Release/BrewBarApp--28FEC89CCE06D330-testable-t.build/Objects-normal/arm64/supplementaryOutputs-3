@@ -1,0 +1,12 @@
+{
+  "/Users/denn/Documents/Development/BrewBar/Sources/BrewBarApp/App.swift" : {
+    "abi-baseline-json" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp.abi.json",
+    "const-values" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp--28FEC89CCE06D330-testable-primary.swiftconstvalues",
+    "dependencies" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp--28FEC89CCE06D330-testable-primary.d",
+    "diagnostics" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp--28FEC89CCE06D330-testable-primary.dia",
+    "objc-header" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp-Swift.h",
+    "swiftdoc" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp.swiftdoc",
+    "swiftmodule" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp.swiftmodule",
+    "swiftsourceinfo" : "/Users/denn/Documents/Development/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarApp--28FEC89CCE06D330-testable-t.build/Objects-normal/arm64/BrewBarApp.swiftsourceinfo"
+  }
+}
