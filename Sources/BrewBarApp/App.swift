@@ -95,6 +95,7 @@ struct ContentView: View {
                         .badge(badgeCount(for: tab))
                 }
                 .navigationTitle("BrewBar")
+                .toolbarBackground(.hidden, for: .windowToolbar)
                 .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search formulas & casks")
                 .onSubmit(of: .search) {
                     guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
@@ -103,6 +104,7 @@ struct ContentView: View {
                 }
             } detail: {
                 detailView
+                    .toolbarBackground(.hidden, for: .windowToolbar)
             }
             
             if let msg = brewService.activeTaskMessage {

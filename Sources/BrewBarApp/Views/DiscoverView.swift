@@ -190,6 +190,7 @@ public struct DiscoverPackageCardView: View {
     let item: FormulaItem
     let status: PackageInstallStatus
     @State private var isWorking = false
+    @State private var isHovered = false
 
     public var body: some View {
         NavigationLink(destination: FormulaDetailView(formula: item)) {
@@ -219,8 +220,15 @@ public struct DiscoverPackageCardView: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassEffect(.regular, in: .rect(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(isHovered ? 0.3 : 0.1), lineWidth: 1))
+            .shadow(color: Color.black.opacity(isHovered ? 0.2 : 0.0), radius: 10, y: 5)
         }
         .buttonStyle(.plain)
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .contextMenu {
             if let homepage = item.homepage, let url = URL(string: homepage) {
                 ShareLink(item: url) {
@@ -267,10 +275,12 @@ public struct DiscoverPackageCardView: View {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.white, .green)
                 .background(Circle().fill(.background))
+                .symbolEffect(.bounce, value: isHovered)
         case .updateAvailable:
             Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
                 .foregroundStyle(.white, .orange)
                 .background(Circle().fill(.background))
+                .symbolEffect(.variableColor.cumulative.dimInactiveLayers, isActive: isHovered)
         }
     }
 
@@ -278,11 +288,18 @@ public struct DiscoverPackageCardView: View {
     private var actionButton: some View {
         switch status {
         case .notInstalled:
-            Button(isWorking ? "…" : "Install") {
+            Button(action: {
                 Task {
                     isWorking = true
                     try? await BrewService.shared.installFormula(item.id, type: item.type)
                     isWorking = false
+                }
+            }) {
+                if isWorking {
+                    Image(systemName: "arrow.down.circle")
+                        .symbolEffect(.bounce, options: .repeating, value: isWorking)
+                } else {
+                    Text("Install")
                 }
             }
             .buttonStyle(.glass)
@@ -293,11 +310,18 @@ public struct DiscoverPackageCardView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         case .updateAvailable:
-            Button(isWorking ? "…" : "Update") {
+            Button(action: {
                 Task {
                     isWorking = true
                     try? await BrewService.shared.upgradeFormula(item.id, type: item.type)
                     isWorking = false
+                }
+            }) {
+                if isWorking {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .symbolEffect(.rotate, options: .repeating, value: isWorking)
+                } else {
+                    Text("Update")
                 }
             }
             .buttonStyle(.glassProminent)
