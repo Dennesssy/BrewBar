@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 import Foundation
 import Combine
 
@@ -119,6 +121,9 @@ public final class SearchViewModel: ObservableObject {
     public init() {}
 
     public func performSearch() async {
+        try? await Task.sleep(nanoseconds: 300_000_000) // 300ms debounce
+        if Task.isCancelled { return }
+
         isSearching = true
         defer { isSearching = false }
         results = await searchService.search(query, filters: filterState)

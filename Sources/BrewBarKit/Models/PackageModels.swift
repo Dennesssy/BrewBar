@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 import Foundation
 
 public enum PackageType: String, Codable, Sendable, CaseIterable, Identifiable {

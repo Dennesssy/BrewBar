@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 import SwiftUI
 import SwiftData
 import BrewBarKit
@@ -58,6 +60,16 @@ public struct HistoryView: View {
             }
         }
         .navigationTitle("History")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(role: .destructive) {
+                    HistoryStore.shared.clearAll()
+                } label: {
+                    Label("Clear History", systemImage: "trash")
+                }
+            }
+        }
+
     }
     
     private func iconForAction(_ action: String) -> String {

@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 #if canImport(Testing)
 import Testing
 #endif

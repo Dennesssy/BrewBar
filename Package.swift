@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 // swift-tools-version: 6.2
 import PackageDescription
 

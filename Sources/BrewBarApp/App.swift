@@ -1,5 +1,9 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 import SwiftUI
 import BrewBarKit
+
+import CoreSpotlight
 
 @main
 struct BrewBarApp: App {
@@ -11,6 +15,14 @@ struct BrewBarApp: App {
             ContentView()
                 .environmentObject(searchState)
                 .modelContainer(HistoryStore.shared.container)
+                .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+                    if let id = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
+                        let parts = id.components(separatedBy: ":")
+                        if parts.count == 3 {
+                            searchState.pendingQuery = parts[2]
+                        }
+                    }
+                }
         }
         
         MenuBarExtra("BrewBar", systemImage: "mug.fill", isInserted: $preferencesViewModel.preferences.showMenuBarIcon) {

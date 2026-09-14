@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 import Foundation
 
 /// Matches the real `formulae.brew.sh/api/formula.json` schema (verified

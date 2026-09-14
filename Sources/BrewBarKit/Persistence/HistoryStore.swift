@@ -1,3 +1,5 @@
+// Copyright © 2026 Dennis Stewart. All rights reserved.
+
 import Foundation
 import SwiftData
 
@@ -14,6 +16,12 @@ public struct HistoryStore {
         }
     }
     
+    public func clearAll() {
+        let context = container.mainContext
+        try? context.delete(model: HistoryRecord.self)
+        try? context.save()
+    }
+
     public func log(packageName: String, packageType: String, action: String, version: String? = nil, details: String? = nil) {
         let context = container.mainContext
         let record = HistoryRecord(packageName: packageName, packageType: packageType, action: action, version: version, details: details)
