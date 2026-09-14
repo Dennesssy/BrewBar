@@ -33,8 +33,9 @@ public struct DiscoverView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.bottom, 24)
         }
+        .contentMargins(.bottom, 24, for: .scrollContent)
+        .scrollClipDisabled()
         .navigationTitle("Discover")
         .task {
             // Populate installedPackages so card statuses (Install/Installed/
@@ -114,6 +115,7 @@ public struct DiscoverView: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.paging)
+                .scrollClipDisabled()
                 .frame(height: 250)
                 .padding(.top)
             }
@@ -165,6 +167,7 @@ public struct PackageCarouselSection: View {
                     .scrollTargetLayout()
                 }
                 .scrollTargetBehavior(.viewAligned)
+                .scrollClipDisabled()
             }
         }
     }
