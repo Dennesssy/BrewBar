@@ -152,17 +152,28 @@ public final class FormulaDetailViewModel: ObservableObject {
         isFetchingDetails = true
         
         Task {
+            let token = try? KeychainManager.shared.retrieveToken(service: "com.dennesssy.brewbar.github")
+            
+            func makeRequest(for urlStr: String) -> URLRequest? {
+                guard let url = URL(string: urlStr) else { return nil }
+                var req = URLRequest(url: url)
+                if let token = token, !token.isEmpty {
+                    req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+                return req
+            }
+
             // Fetch Stars
-            if let url = URL(string: "https://api.github.com/repos/\(targetRepo)"),
-               let (data, _) = try? await URLSession.shared.data(from: url),
+            if let req = makeRequest(for: "https://api.github.com/repos/\(targetRepo)"),
+               let (data, _) = try? await URLSession.shared.data(for: req),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let stars = json["stargazers_count"] as? Int {
                 DispatchQueue.main.async { self.githubStars = stars }
             }
             
             // Fetch Readme
-            if let url = URL(string: "https://api.github.com/repos/\(targetRepo)/readme"),
-               let (data, _) = try? await URLSession.shared.data(from: url),
+            if let req = makeRequest(for: "https://api.github.com/repos/\(targetRepo)/readme"),
+               let (data, _) = try? await URLSession.shared.data(for: req),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let content = json["content"] as? String {
                 let cleanedContent = content.replacingOccurrences(of: "\n", with: "")
@@ -195,15 +206,28 @@ public final class FormulaDetailViewModel: ObservableObject {
 public final class PreferencesViewModel: ObservableObject {
     @Published public var preferences: UserPreferences = UserPreferences()
 
+    @Published public var githubToken: String = ""
+
     public init() {
         Task {
             self.preferences = await LocalStorageManager.shared.loadPreferences()
+            if let token = try? KeychainManager.shared.retrieveToken(service: "com.dennesssy.brewbar.github") {
+                DispatchQueue.main.async { self.githubToken = token }
+            }
         }
     }
 
     public func save() {
         Task {
             await LocalStorageManager.shared.savePreferences(preferences)
+        }
+    }
+    
+    public func saveToken(_ token: String) {
+        if token.isEmpty {
+            try? KeychainManager.shared.deleteToken(service: "com.dennesssy.brewbar.github")
+        } else {
+            try? KeychainManager.shared.saveToken(token, service: "com.dennesssy.brewbar.github")
         }
     }
 }

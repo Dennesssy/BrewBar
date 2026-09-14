@@ -59,21 +59,74 @@ struct ContentView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            List(Tab.sidebarCases, selection: $selectedTab) { tab in
-                Label(tab.rawValue, systemImage: tab.systemImage)
-                    .tag(tab)
-                    .badge(badgeCount(for: tab))
+        VStack(spacing: 0) {
+            NavigationSplitView {
+                List(Tab.sidebarCases, selection: $selectedTab) { tab in
+                    Label(tab.rawValue, systemImage: tab.systemImage)
+                        .tag(tab)
+                        .badge(badgeCount(for: tab))
+                }
+                .navigationTitle("BrewBar")
+                .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search formulas & casks")
+                .onSubmit(of: .search) {
+                    guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                    searchState.pendingQuery = searchQuery
+                    selectedTab = .search
+                }
+            } detail: {
+                detailView
             }
-            .navigationTitle("BrewBar")
-            .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search formulas & casks")
-            .onSubmit(of: .search) {
-                guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                searchState.pendingQuery = searchQuery
-                selectedTab = .search
+            
+            if let msg = brewService.activeTaskMessage {
+                VStack(spacing: 6) {
+                    Divider()
+                    HStack {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                        if let percent = brewService.activeTaskProgress {
+                            Text("\(Int(percent * 100))%")
+                                .font(.caption.monospacedDigit())
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 4)
+                    
+                    if let percent = brewService.activeTaskProgress {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.secondary.opacity(0.2))
+                                
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.blue, Color.purple],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: max(0, geo.size.width * CGFloat(percent)))
+                                    .animation(.linear(duration: 0.2), value: percent)
+                            }
+                        }
+                        .frame(height: 6)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                    } else {
+                        ProgressView()
+                            .progressViewStyle(LinearProgressViewStyle())
+                            .padding(.horizontal)
+                            .padding(.bottom, 8)
+                    }
+                }
+                .background(Color(NSColor.controlBackgroundColor))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.easeInOut, value: brewService.activeTaskMessage != nil)
             }
-        } detail: {
-            detailView
         }
     }
 

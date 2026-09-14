@@ -12,6 +12,10 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var isUpdatingHomebrew: Bool = false
     @Published public private(set) var isCleaningUp: Bool = false
     @Published public private(set) var isRunningDoctor: Bool = false
+    
+    @Published public private(set) var activeTaskMessage: String?
+    @Published public private(set) var activeTaskProgress: Double?
+    
     /// Formula/cask names `brew update` reported under "==> New Formulae" /
     /// "==> New Casks" on the most recent update — real output, not curated.
     @Published public private(set) var newFormulaNames: [String] = []
@@ -32,7 +36,14 @@ public final class BrewService: ObservableObject {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name, type: type)
         do {
-            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            defer { Task { @MainActor in resetProgress() } }
+            _ = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                outputHandler: { [weak self] out in
+                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Installing \(name)...") }
+                }
+            )
             self.lastError = nil
             try await refreshInstalledPackages()
         } catch {
@@ -46,7 +57,14 @@ public final class BrewService: ObservableObject {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name, type: type)
         do {
-            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            defer { Task { @MainActor in resetProgress() } }
+            _ = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                outputHandler: { [weak self] out in
+                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Upgrading \(name)...") }
+                }
+            )
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
@@ -61,7 +79,14 @@ public final class BrewService: ObservableObject {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade()
         do {
-            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            defer { Task { @MainActor in resetProgress() } }
+            _ = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                outputHandler: { [weak self] out in
+                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Upgrading all packages...") }
+                }
+            )
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()
@@ -76,7 +101,14 @@ public final class BrewService: ObservableObject {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name, type: type)
         do {
-            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            defer { Task { @MainActor in resetProgress() } }
+            _ = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                outputHandler: { [weak self] out in
+                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Uninstalling \(name)...") }
+                }
+            )
             self.lastError = nil
             try await refreshInstalledPackages()
             try await checkForUpdates()

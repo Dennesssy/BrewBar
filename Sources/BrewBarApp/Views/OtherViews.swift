@@ -299,6 +299,16 @@ public struct PreferencesView: View {
                 Toggle("Show menu bar icon", isOn: $viewModel.preferences.showMenuBarIcon)
                 TextField("Homebrew Path", text: $viewModel.preferences.homebrewPrefix)
             }
+            
+            Section("GitHub Integration") {
+                SecureField("GitHub Personal Access Token", text: $viewModel.githubToken)
+                    .onChange(of: viewModel.githubToken) { _, newValue in
+                        viewModel.saveToken(newValue)
+                    }
+                Text("Adding a token increases the GitHub API rate limit from 60 to 5,000 requests per hour, preventing rich package details from failing to load. This is securely stored in your Keychain.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             Section("Maintenance") {
                 HStack {

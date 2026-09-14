@@ -5,11 +5,11 @@
       "name" : "BrewBar",
       "path" : "/Users/denn/Desktop/Xcode/BrewBar",
       "projects" : [
-        "ffbeb33bca3177f36ab2867bc900cb223dbc25c9fa2080c640ec77ff08d24dae",
+        "433a526f3add54eb5444d28ce66f0f240814e03d9dcc7bd556dabcacaea0f01a",
         "61228d8801c65621ed018e41dce048465297470ed602427b847d49b50e195a7a"
       ]
     },
-    "signature" : "788a3fd588cd0e8afc58ada7cde88e79da389f3a11863bd8fb9b4d458d51ab69",
+    "signature" : "bade354aa89be812e4e2dacbb10944d794d68f1566fbdbb7f43af237ae062dd2",
     "type" : "workspace"
   },
   {
@@ -242,6 +242,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_3",
+                "name" : "Views/IconView.swift",
+                "path" : "Views/IconView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_4",
                 "name" : "Views/OtherViews.swift",
                 "path" : "Views/OtherViews.swift",
                 "sourceTree" : "<group>",
@@ -249,7 +257,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_4",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_5",
                 "name" : "Views/ServicesView.swift",
                 "path" : "Views/ServicesView.swift",
                 "sourceTree" : "<group>",
@@ -581,6 +589,14 @@
               {
                 "fileType" : "sourcecode.swift",
                 "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_3",
+                "name" : "Views/IconView.swift",
+                "path" : "Views/IconView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_4",
                 "name" : "Views/OtherViews.swift",
                 "path" : "Views/OtherViews.swift",
                 "sourceTree" : "<group>",
@@ -588,7 +604,7 @@
               },
               {
                 "fileType" : "sourcecode.swift",
-                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_4",
+                "guid" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_5",
                 "name" : "Views/ServicesView.swift",
                 "path" : "Views/ServicesView.swift",
                 "sourceTree" : "<group>",
@@ -617,14 +633,14 @@
         "b57a9d30610b2335d0c2992f37bb64ca878d58b207bd660fecbea5cf4778fba1",
         "ba69b3a674d828fd12de1474d42fe4b625d47e7f81990747bec8b8a9c49c2293",
         "d60e0f0600f47e1c6a46cd322d0206e02af7b7df94f5cac8bb6743c05b404251",
-        "188a0a18331ebe1e8c05e5562b031c0d5ce74724644895f05d94f18f96d1e364",
+        "f08c5f9f553228d475354b3675610c1902665c6073ba02e9d35e8a707896d720",
         "193174f48b26610366dd99642b187feffa5c61e5925d1de9a52043a041014232",
         "5aa5e944f5eded7e1782dae6e737f6009d3282b5f7dce5c44cf9dd0c7eed2b2e",
-        "9606e3cf77ba51fd85afa4e47bb0cf80ce12f5836cfb1a540c7efdbd4f6fd33a",
+        "4ad4d30e06db8497c499562779a0a4543ac1ff1e89aec43ca71e793781114c30",
         "90829299895e3376c3d7891078d65d074840e394e6bc953c360202677ad431d6"
       ]
     },
-    "signature" : "ffbeb33bca3177f36ab2867bc900cb223dbc25c9fa2080c640ec77ff08d24dae",
+    "signature" : "433a526f3add54eb5444d28ce66f0f240814e03d9dcc7bd556dabcacaea0f01a",
     "type" : "project"
   },
   {
@@ -1151,6 +1167,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:brewbar::MAINGROUP::REF_3::REF_5",
+              "guid" : "PACKAGE-PRODUCT:brewbar_BrewBar.BrewBar::BUILDPHASE_0::5",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-PRODUCT:brewbar_BrewBar.BrewBar::BUILDPHASE_0",
@@ -1194,7 +1219,7 @@
       "productTypeIdentifier" : "com.apple.product-type.tool",
       "type" : "standard"
     },
-    "signature" : "188a0a18331ebe1e8c05e5562b031c0d5ce74724644895f05d94f18f96d1e364",
+    "signature" : "f08c5f9f553228d475354b3675610c1902665c6073ba02e9d35e8a707896d720",
     "type" : "target"
   },
   {
@@ -1682,6 +1707,15 @@
 
               ],
               "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:brewbar::MAINGROUP::REF_6::REF_5",
+              "guid" : "PACKAGE-TARGET:BrewBarApp--28FEC89CCE06D330-testable::BUILDPHASE_0::5",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
             }
           ],
           "guid" : "PACKAGE-TARGET:BrewBarApp--28FEC89CCE06D330-testable::BUILDPHASE_0",
@@ -1712,7 +1746,7 @@
       "productTypeIdentifier" : "org.swift.product-type.common.object",
       "type" : "standard"
     },
-    "signature" : "9606e3cf77ba51fd85afa4e47bb0cf80ce12f5836cfb1a540c7efdbd4f6fd33a",
+    "signature" : "4ad4d30e06db8497c499562779a0a4543ac1ff1e89aec43ca71e793781114c30",
     "type" : "target"
   },
   {
