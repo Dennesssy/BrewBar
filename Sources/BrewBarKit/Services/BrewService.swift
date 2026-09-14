@@ -13,8 +13,8 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var isCleaningUp: Bool = false
     @Published public private(set) var isRunningDoctor: Bool = false
     
-    @Published public private(set) var activeTaskMessage: String?
-    @Published public private(set) var activeTaskProgress: Double?
+    @Published public var activeTaskMessage: String?
+    @Published public var activeTaskProgress: Double?
     
     /// Formula/cask names `brew update` reported under "==> New Formulae" /
     /// "==> New Casks" on the most recent update — real output, not curated.
