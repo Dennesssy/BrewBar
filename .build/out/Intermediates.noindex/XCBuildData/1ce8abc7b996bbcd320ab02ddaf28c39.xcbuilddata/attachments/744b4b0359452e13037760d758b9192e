@@ -38,6 +38,11 @@
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Persistence.bc",
     "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/Persistence.o"
   },
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/BrewService+Progress.swift" : {
+    "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService+Progress.o"
+  },
   "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarKit/Services/BrewService.swift" : {
     "index-unit-output-path" : "/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService.o",
     "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBarKit-t.build/Objects-normal/arm64/BrewService.bc",

@@ -130,6 +130,9 @@ public final class FormulaDetailViewModel: ObservableObject {
     @Published public var formula: FormulaItem
     @Published public var githubStars: Int?
     @Published public var githubReadme: String?
+    @Published public var githubPublisher: String?
+    @Published public var githubLastUpdated: Date?
+    @Published public var manPage: String?
     @Published public var isFetchingDetails = false
 
     public init(formula: FormulaItem) {
@@ -138,6 +141,10 @@ public final class FormulaDetailViewModel: ObservableObject {
 
     public func fetchRichDetailsIfNeeded() {
         guard githubStars == nil && !isFetchingDetails else { return }
+        
+        Task {
+            await fetchManPage()
+        }
         
         // Extract owner/repo from homepage or repository if it's GitHub
         var repoPath: String?
@@ -163,12 +170,29 @@ public final class FormulaDetailViewModel: ObservableObject {
                 return req
             }
 
-            // Fetch Stars
+            // Fetch Stars, Publisher, and Last Updated
             if let req = makeRequest(for: "https://api.github.com/repos/\(targetRepo)"),
                let (data, _) = try? await URLSession.shared.data(for: req),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let stars = json["stargazers_count"] as? Int {
-                DispatchQueue.main.async { self.githubStars = stars }
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                
+                let stars = json["stargazers_count"] as? Int
+                
+                var publisher: String?
+                if let owner = json["owner"] as? [String: Any], let login = owner["login"] as? String {
+                    publisher = login
+                }
+                
+                var lastUpdated: Date?
+                if let updatedStr = json["updated_at"] as? String {
+                    let formatter = ISO8601DateFormatter()
+                    lastUpdated = formatter.date(from: updatedStr)
+                }
+                
+                DispatchQueue.main.async { 
+                    self.githubStars = stars
+                    self.githubPublisher = publisher
+                    self.githubLastUpdated = lastUpdated
+                }
             }
             
             // Fetch Readme
@@ -185,6 +209,31 @@ public final class FormulaDetailViewModel: ObservableObject {
             
             DispatchQueue.main.async { self.isFetchingDetails = false }
         }
+    }
+
+    private func fetchManPage() async {
+        let processManager = ProcessManager()
+        
+        // Try getting the man page first
+        do {
+            let output = try await processManager.execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
+            if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
+                DispatchQueue.main.async { self.manPage = output }
+                return
+            }
+        } catch {}
+
+        // Fallback to --help
+        do {
+            let output = try await processManager.execute(executablePath: HomebrewPath.defaultBrewExecutable, arguments: ["--help"])
+            // Wait, we want the formula's help, not brew's help.
+            // If it's installed, we could try running it: `formula.name --help`
+            // But we don't know the exact binary path. We could try using bash.
+            let binOutput = try await processManager.execute(executablePath: "/bin/bash", arguments: ["-c", "\(formula.name) --help"])
+            if !binOutput.isEmpty {
+                DispatchQueue.main.async { self.manPage = binOutput }
+            }
+        } catch {}
     }
 
     /// Installs the formula, or upgrades it if it's already installed with

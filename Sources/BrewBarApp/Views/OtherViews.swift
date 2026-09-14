@@ -210,6 +210,12 @@ public struct FormulaDetailView: View {
                     if let stars = viewModel.githubStars {
                         metadataColumn(label: "STARS ⭐️", value: "\(stars)")
                     }
+                    if let publisher = viewModel.githubPublisher {
+                        metadataColumn(label: "PUBLISHER", value: publisher)
+                    }
+                    if let updated = viewModel.githubLastUpdated {
+                        metadataColumn(label: "UPDATED", value: updated.formatted(date: .abbreviated, time: .omitted))
+                    }
                 }
 
                 Divider()
@@ -228,6 +234,24 @@ public struct FormulaDetailView: View {
                         ProgressView()
                             .padding(.top, 8)
                     }
+                }
+                
+                if let manPage = viewModel.manPage {
+                    Divider()
+                    Text("Manual & Help")
+                        .font(.title2)
+                        .bold()
+                    ScrollView {
+                        Text(manPage)
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(height: 250)
+                    .padding(12)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
                 }
 
                 if !viewModel.formula.dependencies.isEmpty {
