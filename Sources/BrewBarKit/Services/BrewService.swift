@@ -50,6 +50,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }
@@ -73,6 +76,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }
@@ -96,6 +102,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }
@@ -119,6 +128,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }
@@ -231,6 +243,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }
@@ -255,6 +270,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }
@@ -274,6 +292,9 @@ public final class BrewService: ObservableObject {
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
+            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
+            try? await refreshInstalledPackages()
+            try? await checkForUpdates()
             throw handled
         }
     }

@@ -94,6 +94,10 @@ public actor ProcessManager {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: executablePath)
             process.arguments = arguments
+            var env = ProcessInfo.processInfo.environment
+            env["HOMEBREW_NO_INTERACTIVE"] = "1"
+            env["HOMEBREW_NO_ENV_HINTS"] = "1"
+            process.environment = env
 
             let outputPipe = Pipe()
             let errorPipe = Pipe()
