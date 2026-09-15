@@ -33,11 +33,12 @@ public struct HomeView: View {
         }
         .navigationTitle("Home")
         .task {
-            try? await BrewService.shared.checkForUpdates()
-            try? await BrewService.shared.refreshInstalledPackages()
-            await viewModel.loadData()
-            await ServicesManager.shared.refresh()
+            Task { try? await BrewService.shared.checkForUpdates() }
+            Task { try? await BrewService.shared.refreshInstalledPackages() }
+            Task { await viewModel.loadData() }
+            Task { await ServicesManager.shared.refresh() }
         }
+
     }
 }
 
