@@ -1,0 +1,23 @@
+--- Sources/BrewBarApp/Views/HomeView.swift
++++ Sources/BrewBarApp/Views/HomeView.swift
+@@ -34,10 +34,14 @@
+             }
+         }
+         .task {
+-            try? await BrewService.shared.checkForUpdates()
+-            try? await BrewService.shared.refreshInstalledPackages()
+-            await viewModel.loadData()
+-            await ServicesManager.shared.refresh()
++            async let _ = BrewService.shared.checkForUpdates()
++            async let _ = BrewService.shared.refreshInstalledPackages()
++            
++            // Load UI data immediately without waiting for brew update to finish
++            Task {
++                await viewModel.loadData()
++            }
++            Task {
++                await ServicesManager.shared.refresh()
++            }
+         }
+     }
+ }

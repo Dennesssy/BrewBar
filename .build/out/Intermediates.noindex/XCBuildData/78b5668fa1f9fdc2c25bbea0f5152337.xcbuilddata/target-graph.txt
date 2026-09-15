@@ -1,0 +1,17 @@
+Target dependency graph (6 targets)
+Target 'AllIncludingTests' in project 'Aggregate'
+➜ Explicit dependency on target 'BrewBarTests-product' in project 'BrewBar'
+➜ Dependency on target 'BrewBarTests-product' in project 'BrewBar' via transitive dependency through 'BrewBarTests-test-runner'
+➜ Explicit dependency on target 'BrewBarKit-product' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBar-product' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBarKit' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBarApp' in project 'BrewBar'
+Target 'BrewBarApp' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBarKit' in project 'BrewBar'
+Target 'BrewBar-product' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBarKit' in project 'BrewBar'
+Target 'BrewBarKit-product' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBarKit' in project 'BrewBar'
+Target 'BrewBarTests-product' in project 'BrewBar'
+➜ Explicit dependency on target 'BrewBarKit' in project 'BrewBar'
+Target 'BrewBarKit' in project 'BrewBar' (no dependencies)

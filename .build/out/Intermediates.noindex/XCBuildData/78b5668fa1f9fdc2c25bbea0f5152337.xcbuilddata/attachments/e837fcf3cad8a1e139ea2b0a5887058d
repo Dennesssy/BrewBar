@@ -1,0 +1,29 @@
+{
+  "" : {
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarTests-primary.dia",
+    "emit-module-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarTests-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarTests-primary-emit-module.dia",
+    "pch" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarTests-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarTests-primary.swiftdeps"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/DerivedSources/test_entry_point.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.dia",
+    "index-unit-output-path" : "/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point.swiftdeps",
+    "swiftmodule" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/test_entry_point~partial.swiftmodule"
+  },
+  "/Users/denn/Desktop/Xcode/BrewBar/Tests/BrewBarTests/BrewBarKitTests.swift" : {
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.dia",
+    "index-unit-output-path" : "/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.o",
+    "llvm-bc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.bc",
+    "object" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.o",
+    "swift-dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests.swiftdeps",
+    "swiftmodule" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Debug/BrewBarTests-p.build/Objects-normal/arm64/BrewBarKitTests~partial.swiftmodule"
+  }
+}

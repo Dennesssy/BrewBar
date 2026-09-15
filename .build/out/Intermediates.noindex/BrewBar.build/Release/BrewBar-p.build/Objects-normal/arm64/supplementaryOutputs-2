@@ -1,0 +1,11 @@
+{
+  "/Users/denn/Desktop/Xcode/BrewBar/Sources/BrewBarApp/App.swift" : {
+    "abi-baseline-json" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBarApp.abi.json",
+    "const-values" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.swiftconstvalues",
+    "dependencies" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.d",
+    "diagnostics" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBar-primary.dia",
+    "swiftdoc" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBarApp.swiftdoc",
+    "swiftmodule" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBarApp.swiftmodule",
+    "swiftsourceinfo" : "/Users/denn/Desktop/Xcode/BrewBar/.build/out/Intermediates.noindex/BrewBar.build/Release/BrewBar-p.build/Objects-normal/arm64/BrewBarApp.swiftsourceinfo"
+  }
+}

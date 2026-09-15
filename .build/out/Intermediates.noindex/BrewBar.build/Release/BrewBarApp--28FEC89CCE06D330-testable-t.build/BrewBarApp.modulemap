@@ -1,0 +1,4 @@
+module BrewBarApp {
+header "BrewBarApp-Swift.h"
+export *
+}
