@@ -28,5 +28,7 @@ extension BrewService {
     func resetProgress() {
         activeTaskMessage = nil
         activeTaskProgress = nil
+        activeTaskCommand = nil
+        activeTaskConsoleOutput = ""
     }
 }

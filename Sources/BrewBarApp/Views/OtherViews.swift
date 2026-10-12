@@ -49,6 +49,9 @@ public struct InstalledView: View {
 
 public struct UpdatesView: View {
     @StateObject private var viewModel = UpdatesViewModel()
+    @State private var updateAllPreview: String?
+    @State private var isPreviewing = false
+    @ObservedObject private var brewService = BrewService.shared
 
     public init() {}
 
@@ -59,12 +62,19 @@ public struct UpdatesView: View {
                     .font(.title2)
                     .bold()
                 Spacer()
-                Button("Update All") {
+                Button(isPreviewing ? "Checking..." : "Update All") {
                     Task {
-                        await viewModel.updateAll()
+                        isPreviewing = true
+                        if let preview = try? await brewService.dryRunUpgradeAll() {
+                            updateAllPreview = preview
+                        } else {
+                            await viewModel.updateAll()
+                        }
+                        isPreviewing = false
                     }
                 }
                 .buttonStyle(.glassProminent)
+                .disabled(isPreviewing)
             }
             .padding()
 
@@ -84,6 +94,34 @@ public struct UpdatesView: View {
                     }
                     .buttonStyle(.glass)
                 }
+            }
+            if let output = updateAllPreview {
+                Text("Preview:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                ScrollView {
+                    Text(output)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 120)
+                
+                HStack {
+                    Button("Cancel") {
+                        updateAllPreview = nil
+                    }
+                    .buttonStyle(.glass)
+                    
+                    Button("Confirm Update All") {
+                        updateAllPreview = nil
+                        Task {
+                            try? await brewService.upgradeAll()
+                        }
+                    }
+                    .buttonStyle(.glassProminent)
+
+                }
+                .padding(.top, 4)
             }
         }
         .navigationTitle("Updates")
@@ -315,6 +353,10 @@ public struct PreferencesView: View {
     @State private var cleanupResult: String?
     @State private var updateError: String?
     @State private var doctorResult: String?
+    @State private var isPreviewingAutoremove = false
+    @State private var autoremovePreview: String?
+    @State private var showAutoremoveConfirmation = false
+    @State private var autoremoveResult: String?
 
     public init() {}
 
@@ -347,6 +389,41 @@ public struct PreferencesView: View {
                 Text("Adding a token increases the GitHub API rate limit from 60 to 5,000 requests per hour, preventing rich package details from failing to load. This is securely stored in your Keychain.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            Section("Taps") {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        TextField("Enter tap name (e.g., homebrew/cask-versions)", text: $viewModel.newTapName)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        Button("Tap") {
+                            Task {
+                                try? await BrewService.shared.tap(viewModel.newTapName)
+                                viewModel.newTapName = ""
+                                await viewModel.loadTaps()
+                            }
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(viewModel.newTapName.isEmpty)
+                    }
+                    
+                    List {
+                        ForEach(viewModel.taps, id: \.self) { tap in
+                            HStack {
+                                Text(tap)
+                                Spacer()
+                                Button("Untap") {
+                                    Task {
+                                        try? await BrewService.shared.untap(tap)
+                                        await viewModel.loadTaps()
+                                    }
+                                }
+                                .buttonStyle(.glassProminent)
+                            }
+                        }
+                    }
+                    .frame(height: 120)
+                }
             }
 
             Section("Maintenance") {
@@ -422,42 +499,65 @@ public struct PreferencesView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("Autoremove")
+                            Text("Removes installed packages that are no longer needed as dependencies.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button(isPreviewingAutoremove ? "Checking…" : "Preview") {
+                            Task {
+                                isPreviewingAutoremove = true
+                                autoremovePreview = try? await brewService.autoremove(dryRun: true)
+                                isPreviewingAutoremove = false
+                            }
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(isPreviewingAutoremove)
+
+                        Button("Autoremove Now") {
+                            showAutoremoveConfirmation = true
+                        }
+                        .buttonStyle(.glassProminent)
+                    }
+
+                    if let autoremovePreview, !autoremovePreview.isEmpty {
+                        ScrollView {
+                            Text(autoremovePreview)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 120)
+                    }
+
+                    if let autoremoveResult, !autoremoveResult.isEmpty {
+                        Text(autoremoveResult)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         VStack(alignment: .leading) {
                             Text("Brew Doctor")
-                            Text("Checks your system for potential Homebrew problems.")
+                            Text("Checks your system for potential Homebrew problems. See the Doctor tab for more details.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        Spacer()
-                        Button(brewService.isRunningDoctor ? "Checking…" : "Run Doctor") {
-                            Task {
-                                do {
-                                    doctorResult = try await brewService.doctor()
-                                } catch {
-                                    doctorResult = "Doctor failed: \(error.localizedDescription)"
-                                }
-                            }
-                        }
-                        .buttonStyle(.glass)
-                        .disabled(brewService.isRunningDoctor)
-                    }
-
-                    if let doctorResult, !doctorResult.isEmpty {
-                        ScrollView {
-                            Text(doctorResult)
-                                .font(.system(.caption, design: .monospaced))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .frame(maxHeight: 120)
                     }
                 }
             }
         }
         .padding()
         .navigationTitle("Preferences")
+        .task {
+            await viewModel.loadTaps()
+        }
         .onChange(of: viewModel.preferences) { _, _ in
             viewModel.save()
         }
@@ -479,6 +579,22 @@ public struct PreferencesView: View {
             }
         } message: {
             Text("This permanently deletes old versions and cached downloads for installed formulas and casks. This cannot be undone.")
+        }
+        .alert("Autoremove Packages?", isPresented: $showAutoremoveConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Autoremove", role: .destructive) {
+                Task {
+                    do {
+                        let output = try await brewService.autoremove(dryRun: false)
+                        autoremoveResult = output.isEmpty ? "Nothing to autoremove." : output
+                        autoremovePreview = nil
+                    } catch {
+                        autoremoveResult = "Autoremove failed: \(error.localizedDescription)"
+                    }
+                }
+            }
+        } message: {
+            Text("This permanently removes installed packages that are no longer needed as dependencies. This cannot be undone.")
         }
     }
 }

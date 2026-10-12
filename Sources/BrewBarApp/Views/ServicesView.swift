@@ -51,7 +51,8 @@ public struct ServicesView: View {
                         isBusy: manager.pendingActions.contains(service.name),
                         onStart: { Task { await manager.start(service.name) } },
                         onStop: { Task { await manager.stop(service.name) } },
-                        onRestart: { Task { await manager.restart(service.name) } }
+                        onRestart: { Task { await manager.restart(service.name) } },
+                        onShowLog: { Task { await manager.showLog(service.name) } }
                     )
                 }
             }
@@ -69,6 +70,7 @@ private struct ServiceRowView: View {
     let onStart: () -> Void
     let onStop: () -> Void
     let onRestart: () -> Void
+    let onShowLog: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -121,9 +123,18 @@ private struct ServiceRowView: View {
                 .buttonStyle(.glassProminent)
                 .controlSize(.small)
         } else {
+            if service.status == "error" {
+                Button("Restart", action: onRestart)
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
+            }
             Button("Start", action: onStart)
                 .buttonStyle(.glassProminent)
                 .controlSize(.small)
         }
+        
+        Button("Show Log", action: onShowLog)
+            .buttonStyle(.glass)
+            .controlSize(.small)
     }
 }

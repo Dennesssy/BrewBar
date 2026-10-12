@@ -70,12 +70,25 @@ private final class ProcessOutputBox: @unchecked Sendable {
 
 public actor ProcessManager {
     public private(set) var isRunning: Bool = false
+    private var currentProcess: Process?
 
     /// Grace period after SIGTERM before escalating to SIGKILL, so a process
     /// that ignores SIGTERM can't hang execute(...) forever.
     private static let killEscalationDelay: TimeInterval = 5
 
     public init() {}
+
+    public func cancel() {
+        guard let process = currentProcess, process.isRunning else { return }
+        // Try SIGTERM first
+        process.terminate()
+        // Schedule SIGKILL if it doesn't die
+        DispatchQueue.global().asyncAfter(deadline: .now() + Self.killEscalationDelay) {
+            if process.isRunning {
+                kill(-process.processIdentifier, SIGKILL)
+            }
+        }
+    }
 
     public typealias OutputHandler = @Sendable (String) -> Void
 
@@ -113,6 +126,7 @@ public actor ProcessManager {
         executablePath: String,
         arguments: [String],
         timeout: TimeInterval = 300,
+        allowNonZeroExit: Bool = false,
         outputHandler: OutputHandler? = nil
     ) async throws -> String {
         isRunning = true
@@ -158,6 +172,9 @@ public actor ProcessManager {
                 let data = handle.availableData
                 if !data.isEmpty {
                     box.appendError(data)
+                    if let handler = outputHandler, let str = String(data: data, encoding: .utf8) {
+                        handler(str)
+                    }
                 }
             }
 
@@ -211,15 +228,21 @@ public actor ProcessManager {
 
                 if box.hasTimedOut() {
                     continuation.resume(throwing: BrewBarError.commandTimeout(command))
-                } else if proc.terminationStatus != 0 {
+                } else if proc.terminationStatus != 0 && !allowNonZeroExit {
                     let errMessage = finalError.isEmpty ? finalOutput : finalError
                     continuation.resume(throwing: BrewBarError.commandFailed(
                         command: command,
                         error: errMessage.trimmingCharacters(in: .whitespacesAndNewlines)
                     ))
                 } else {
-                    continuation.resume(returning: finalOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+                    let returnOutput = finalOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let returnError = finalError.trimmingCharacters(in: .whitespacesAndNewlines)
+                    continuation.resume(returning: returnOutput.isEmpty ? returnError : returnOutput)
                 }
+            }
+
+            Task {
+                await self.setCurrentProcess(process)
             }
 
             do {
@@ -239,5 +262,9 @@ public actor ProcessManager {
                 continuation.resume(throwing: BrewBarError.commandFailed(command: command, error: error.localizedDescription))
             }
         }
+    }
+
+    private func setCurrentProcess(_ process: Process) {
+        self.currentProcess = process
     }
 }

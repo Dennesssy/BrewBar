@@ -1,6 +1,7 @@
 // Copyright © 2026 Dennis Stewart. All rights reserved.
 
 import Foundation
+import AppKit
 
 @MainActor
 public final class PackageService: ObservableObject {
@@ -77,19 +78,56 @@ public final class ServicesManager: ObservableObject {
         await performAction(.restart, name: name)
     }
 
+    public func showLog(_ name: String) async {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesInfo(name)
+
+        do {
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            if let data = output.data(using: .utf8),
+               let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+               let first = jsonArray.first,
+               let logPath = first["log_path"] as? String,
+               !logPath.isEmpty {
+                NSWorkspace.shared.open(URL(fileURLWithPath: logPath))
+            } else {
+                self.lastError = BrewBarError.parseError("No log path found for service \(name).")
+            }
+        } catch {
+            self.lastError = errorHandler.handle(error)
+        }
+    }
+
     private func performAction(_ action: BrewCommandBuilder.ServiceAction, name: String) async {
         pendingActions.insert(name)
         defer { pendingActions.remove(name) }
 
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesAction(action, formula: name)
+        let commandArgs = builder.buildArguments()
+
+        let brewService = BrewService.shared
+        brewService.activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        brewService.activeTaskConsoleOutput = ""
+        brewService.activeTaskMessage = "\(action.rawValue.capitalized)ing service \(name)..."
 
         do {
-            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 60)
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath, 
+                arguments: commandArgs, 
+                timeout: 60,
+                outputHandler: { out in
+                    Task { @MainActor in
+                        brewService.activeTaskConsoleOutput += out
+                    }
+                }
+            )
             self.lastError = nil
+            HistoryStore.shared.log(packageName: name, packageType: "service", action: "service \(action.rawValue)", details: output)
         } catch {
             self.lastError = errorHandler.handle(error)
         }
+        brewService.activeTaskMessage = nil
         await refresh()
     }
 }

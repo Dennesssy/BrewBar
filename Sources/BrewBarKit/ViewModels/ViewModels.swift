@@ -260,6 +260,8 @@ public final class PreferencesViewModel: ObservableObject {
     @Published public var preferences: UserPreferences = UserPreferences()
 
     @Published public var githubToken: String = ""
+    @Published public var taps: [String] = []
+    @Published public var newTapName: String = ""
 
     public init() {
         Task {
@@ -281,6 +283,14 @@ public final class PreferencesViewModel: ObservableObject {
             try? KeychainManager.shared.deleteToken(service: "com.dennesssy.brewbar.github")
         } else {
             try? KeychainManager.shared.saveToken(token, service: "com.dennesssy.brewbar.github")
+        }
+    }
+    
+    public func loadTaps() async {
+        do {
+            taps = try await BrewService.shared.listTaps()
+        } catch {
+            taps = []
         }
     }
 }
@@ -380,6 +390,7 @@ public final class StorageViewModel: ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public var pendingUninstall: StorageRow?
     @Published public var pendingTrash: StorageRow?
+    @Published public var uninstallPreview: String?
     @Published public var actionError: String?
 
     private let diskUsage = DiskUsageService.shared
@@ -466,8 +477,16 @@ public final class StorageViewModel: ObservableObject {
     }
 
     public func confirmUninstall(_ row: StorageRow) {
-        guard row.uninstallTarget != nil else { return }
-        pendingUninstall = row
+        guard let target = row.uninstallTarget else { return }
+        Task { @MainActor in
+            self.actionError = nil
+            do {
+                self.uninstallPreview = try await brewService.dryRunUninstallFormula(target.name, type: target.type)
+                self.pendingUninstall = row
+            } catch {
+                self.actionError = "Failed dry-run: \(error.localizedDescription)"
+            }
+        }
     }
 
     public func performPendingUninstall() async {

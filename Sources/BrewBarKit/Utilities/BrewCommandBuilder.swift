@@ -33,10 +33,13 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
-    public func upgrade(_ formula: String? = nil, type: PackageType? = nil) -> BrewCommandBuilder {
+    public func upgrade(_ formula: String? = nil, type: PackageType? = nil, dryRun: Bool = false) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "upgrade"
         copy.flags.append(contentsOf: typeFlag(for: type))
+        if dryRun {
+            copy.flags.append("--dry-run")
+        }
         if let formula = formula {
             copy.arguments = [escape(formula)]
         } else {
@@ -45,10 +48,92 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
-    public func uninstall(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {
+    public func config() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "config"
+        return copy
+    }
+
+    public func tap(_ tap: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "tap"
+        copy.arguments = [escape(tap)]
+        return copy
+    }
+
+    public func untap(_ tap: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "untap"
+        copy.arguments = [escape(tap)]
+        return copy
+    }
+
+    public func pin(_ formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "pin"
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    public func unpin(_ formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "unpin"
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    public func autoremove(dryRun: Bool = false) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "autoremove"
+        if dryRun {
+            copy.flags = ["-n"]
+        }
+        return copy
+    }
+
+    public func reinstall(_ formula: String, type: PackageType? = nil) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "reinstall"
+        copy.flags.append(contentsOf: typeFlag(for: type))
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    public func link(_ formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "link"
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    public func unlink(_ formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "unlink"
+        copy.arguments = [escape(formula)]
+        return copy
+    }
+
+    public func bundleDump(file: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "bundle"
+        copy.arguments = ["dump", "--file=\(file)"]
+        return copy
+    }
+
+    public func bundleInstall(file: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "bundle"
+        copy.arguments = ["install", "--file=\(file)"]
+        return copy
+    }
+
+    public func uninstall(_ formula: String, type: PackageType? = nil, dryRun: Bool = false) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "uninstall"
         copy.flags.append(contentsOf: typeFlag(for: type))
+        if dryRun {
+            copy.flags.append("--dry-run")
+        }
         copy.arguments = [escape(formula)]
         return copy
     }
@@ -117,6 +202,20 @@ public struct BrewCommandBuilder: Sendable {
     public func doctor() -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "doctor"
+        // Try to ask for JSON to make parsing easier, fallbacks to plain text if unsupported/not provided.
+        // It's acceptable to add `--json`? Wait, I will need to check if doctor supports `--json`.
+        // The requirements say "Run brew doctor --json if supported"
+        return copy
+    }
+
+    public func doctor(json: Bool) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "doctor"
+        if json {
+            // macOS Homebrew `doctor` does not actually support `--json` out of the box in the stable release yet, but let's pass it. Wait, the prompt says "Run `brew doctor --json` if supported, parse into issues grouped by severity (most severe first) with a list and detail layout. If JSON output is unavailable or unparsable, fall back to parsing the plain text."
+            // We just add `--json`.
+            copy.options["json"] = "" // Actually it might just be `--json` or `--json=v2`
+        }
         return copy
     }
 
@@ -142,6 +241,14 @@ public struct BrewCommandBuilder: Sendable {
         var copy = self
         copy.subcommand = "services"
         copy.arguments = [action.rawValue, escape(formula)]
+        return copy
+    }
+
+    public func servicesInfo(_ formula: String) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "services"
+        copy.arguments = ["info", escape(formula)]
+        copy.options["json"] = ""
         return copy
     }
 

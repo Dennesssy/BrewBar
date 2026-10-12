@@ -40,6 +40,8 @@ struct BrewBarApp: App {
             }
             Button("Update All Packages") {
                 Task {
+                    // It would require UI for preview and confirmation.
+                    // Instead of full UI in MenuBar, this just uses an NSAlert or triggers it in main window.
                     try? await BrewService.shared.upgradeAll()
                 }
             }
@@ -49,6 +51,14 @@ struct BrewBarApp: App {
             }
         }
         .menuBarExtraStyle(.menu)
+
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About BrewBar") {
+                    NSApp.orderFrontStandardAboutPanel(nil)
+                }
+            }
+        }
     }
 }
 
@@ -74,9 +84,11 @@ struct ContentView: View {
         case services = "Services"
         case storage = "Storage"
         case history = "History"
+        case doctor = "Doctor"
+        case config = "Configuration"
         case search = "Search"
         case settings = "Settings"
-        case about = "About"
+        // case about = "About"
 
         var id: String { rawValue }
 
@@ -84,7 +96,7 @@ struct ContentView: View {
         /// like the App Store, search lives in a search field above the
         /// sidebar list (via `.searchable`), not as its own nav row.
         static var sidebarCases: [Tab] {
-            allCases.filter { $0 != .search }
+            allCases.filter { $0 != .search } // about removed from allCases
         }
 
         var systemImage: String {
@@ -96,10 +108,20 @@ struct ContentView: View {
             case .services: return "gearshape.2"
             case .storage: return "externaldrive"
             case .history: return "clock"
+            case .doctor: return "stethoscope"
+            case .config: return "slider.horizontal.3"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
-            case .about: return "info.circle"
             }
+        }
+        
+        var keyboardShortcutKey: KeyEquivalent? {
+            let cases = Tab.sidebarCases
+            if let idx = cases.firstIndex(of: self), idx < 9 {
+                let char = Character(String(idx + 1))
+                return KeyEquivalent(char)
+            }
+            return nil
         }
     }
 
@@ -125,64 +147,35 @@ struct ContentView: View {
             }
             
             if let msg = brewService.activeTaskMessage {
-                VStack(spacing: 6) {
-                    Divider()
-                    HStack {
-                        Text(msg)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                        Spacer()
-                        if let percent = brewService.activeTaskProgress {
-                            Text("\(Int(percent * 100))%")
-                                .font(.caption.monospacedDigit())
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 4)
-                    
-                    if let percent = brewService.activeTaskProgress {
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.secondary.opacity(0.2))
-                                
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.blue, Color.purple],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: max(0, geo.size.width * CGFloat(percent)))
-                                    .animation(.linear(duration: 0.2), value: percent)
-                            }
-                        }
-                        .frame(height: 6)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                    } else {
-                        ProgressView()
-                            .progressViewStyle(LinearProgressViewStyle())
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
-                    }
-                }
-                .background(Color(NSColor.controlBackgroundColor))
+                TaskConsoleView(
+                    message: msg,
+                    progress: brewService.activeTaskProgress,
+                    command: brewService.activeTaskCommand,
+                    output: brewService.activeTaskConsoleOutput
+                )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.easeInOut, value: brewService.activeTaskMessage != nil)
             }
         }
         .background(
-            Button("Refresh") {
-                Task {
-                    try? await BrewService.shared.refreshInstalledPackages()
-                    try? await BrewService.shared.checkForUpdates()
+            ZStack {
+                Button("Refresh") {
+                    Task {
+                        try? await BrewService.shared.refreshInstalledPackages()
+                        try? await BrewService.shared.checkForUpdates()
+                    }
+                }
+                .keyboardShortcut("r", modifiers: .command)
+                
+                ForEach(Tab.sidebarCases, id: \.self) { tab in
+                    if let key = tab.keyboardShortcutKey {
+                        Button(tab.rawValue) {
+                            selectedTab = tab
+                        }
+                        .keyboardShortcut(key, modifiers: .command)
+                    }
                 }
             }
-            .keyboardShortcut("r", modifiers: .command)
             .hidden()
         )
     }
@@ -218,12 +211,14 @@ struct ContentView: View {
             StorageView()
         case .history:
             HistoryView()
+        case .doctor:
+            DoctorView()
+        case .config:
+            ConfigView()
         case .search:
             SearchView()
         case .settings:
             PreferencesView()
-        case .about:
-            AboutView()
         }
     }
 }

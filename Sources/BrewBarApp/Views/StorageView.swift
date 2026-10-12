@@ -36,14 +36,18 @@ public struct StorageView: View {
         }
         .alert("Uninstall \"\(viewModel.pendingUninstall?.name ?? "")\"?", isPresented: Binding(
             get: { viewModel.pendingUninstall != nil },
-            set: { if !$0 { viewModel.pendingUninstall = nil } }
+            set: { if !$0 { viewModel.pendingUninstall = nil; viewModel.uninstallPreview = nil } }
         )) {
             Button("Cancel", role: .cancel) {}
             Button("Uninstall", role: .destructive) {
                 Task { await viewModel.performPendingUninstall() }
             }
         } message: {
-            Text("This runs `brew uninstall` — the only safe way to remove a Homebrew package's files without corrupting Homebrew's own records.")
+            if let preview = viewModel.uninstallPreview, !preview.isEmpty {
+                Text(preview + "\n\nThis will run `brew uninstall` to correctly remove this package and its receipts.")
+            } else {
+                Text("This will run `brew uninstall` to correctly remove this package and its receipts.")
+            }
         }
         .alert("Move \"\(viewModel.pendingTrash?.name ?? "")\" to the Trash?", isPresented: Binding(
             get: { viewModel.pendingTrash != nil },

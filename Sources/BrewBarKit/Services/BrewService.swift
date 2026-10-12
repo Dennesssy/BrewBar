@@ -15,6 +15,8 @@ public final class BrewService: ObservableObject {
     
     @Published public var activeTaskMessage: String?
     @Published public var activeTaskProgress: Double?
+    @Published public var activeTaskCommand: String?
+    @Published public var activeTaskConsoleOutput: String = ""
     
     /// Formula/cask names `brew update` reported under "==> New Formulae" /
     /// "==> New Casks" on the most recent update — real output, not curated.
@@ -27,6 +29,10 @@ public final class BrewService: ObservableObject {
 
     public init() {}
 
+    public func cancelActiveTask() async {
+        await processManager.cancel()
+    }
+
     public func installFormula(_ name: String, type: PackageType? = nil) async throws {
         guard validateFormulaName(name) else {
             let err = BrewBarError.invalidFormulaName(name)
@@ -35,13 +41,19 @@ public final class BrewService: ObservableObject {
         }
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).install(name, type: type)
+        let commandArgs = builder.buildArguments()
+        activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
-                arguments: builder.buildArguments(),
+                arguments: commandArgs,
                 outputHandler: { [weak self] out in
-                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Installing \(name)...") }
+                    Task { @MainActor in 
+                        self?.activeTaskConsoleOutput += out
+                        self?.parseProgressOutput(out, defaultMessage: "Installing \(name)...") 
+                    }
                 }
             )
             self.lastError = nil
@@ -57,16 +69,178 @@ public final class BrewService: ObservableObject {
         }
     }
 
+    @discardableResult
+    public func autoremove(dryRun: Bool) async throws -> String {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).autoremove(dryRun: dryRun)
+        
+        do {
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 120
+            )
+            self.lastError = nil
+            if !dryRun {
+                try await refreshInstalledPackages()
+            }
+            return output
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    public func pinFormula(_ name: String) async throws {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).pin(name)
+        
+        do {
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            self.lastError = nil
+            try await refreshInstalledPackages()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    public func unpinFormula(_ name: String) async throws {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).unpin(name)
+        
+        do {
+            _ = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            self.lastError = nil
+            try await refreshInstalledPackages()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    public func tap(_ tapName: String) async throws {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).tap(tapName)
+        
+        let commandArgs = builder.buildArguments()
+        activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        activeTaskConsoleOutput = ""
+        do {
+            defer { Task { @MainActor in resetProgress() } }
+            _ = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: commandArgs,
+                outputHandler: { [weak self] out in
+                    Task { @MainActor in 
+                        self?.activeTaskConsoleOutput += out
+                        self?.parseProgressOutput(out, defaultMessage: "Tapping \(tapName)...") 
+                    }
+                }
+            )
+            self.lastError = nil
+            // Just refresh updates might be sufficient but tapping could bring new formula
+            try await refreshInstalledPackages()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    public func untap(_ tapName: String) async throws {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).untap(tapName)
+        
+        let commandArgs = builder.buildArguments()
+        activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        activeTaskConsoleOutput = ""
+        do {
+            defer { Task { @MainActor in resetProgress() } }
+            _ = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: commandArgs,
+                outputHandler: { [weak self] out in
+                    Task { @MainActor in 
+                        self?.activeTaskConsoleOutput += out
+                        self?.parseProgressOutput(out, defaultMessage: "Untapping \(tapName)...") 
+                    }
+                }
+            )
+            self.lastError = nil
+            try await refreshInstalledPackages()
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    public func listTaps() async throws -> [String] {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).tap("")
+        // Without args, tap lists all installed taps
+        var args = builder.buildArguments()
+        if args.last == "" { args.removeLast() }
+        
+        do {
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: args,
+                timeout: 30
+            )
+            self.lastError = nil
+            return output.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    // placeholder to let diff work smoothly
+    @discardableResult
+    private func placeholderAutoremove(dryRun: Bool) async throws -> String {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).autoremove(dryRun: dryRun)
+        
+        do {
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 120
+            )
+            self.lastError = nil
+            if !dryRun {
+                try await refreshInstalledPackages()
+            }
+            return output
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
     public func upgradeFormula(_ name: String, type: PackageType? = nil) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name, type: type)
+        let commandArgs = builder.buildArguments()
+        activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
-                arguments: builder.buildArguments(),
+                arguments: commandArgs,
                 outputHandler: { [weak self] out in
-                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Upgrading \(name)...") }
+                    Task { @MainActor in 
+                        self?.activeTaskConsoleOutput += out
+                        self?.parseProgressOutput(out, defaultMessage: "Upgrading \(name)...") 
+                    }
                 }
             )
             self.lastError = nil
@@ -86,13 +260,19 @@ public final class BrewService: ObservableObject {
     public func upgradeAll() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade()
+        let commandArgs = builder.buildArguments()
+        activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
             _ = try await processManager.execute(
                 executablePath: builder.executablePath,
-                arguments: builder.buildArguments(),
+                arguments: commandArgs,
                 outputHandler: { [weak self] out in
-                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Upgrading all packages...") }
+                    Task { @MainActor in 
+                        self?.activeTaskConsoleOutput += out
+                        self?.parseProgressOutput(out, defaultMessage: "Upgrading all packages...") 
+                    }
                 }
             )
             self.lastError = nil
@@ -109,16 +289,39 @@ public final class BrewService: ObservableObject {
         }
     }
 
+    public func dryRunUninstallFormula(_ name: String, type: PackageType? = nil) async throws -> String {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name, type: type, dryRun: true)
+        
+        do {
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 30
+            )
+            return output
+        } catch {
+            let handled = errorHandler.handle(error)
+            throw handled
+        }
+    }
+
     public func uninstallFormula(_ name: String, type: PackageType? = nil) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).uninstall(name, type: type)
+        let commandArgs = builder.buildArguments()
+        activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
+        activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
-                arguments: builder.buildArguments(),
+                arguments: commandArgs,
                 outputHandler: { [weak self] out in
-                    Task { @MainActor in self?.parseProgressOutput(out, defaultMessage: "Uninstalling \(name)...") }
+                    Task { @MainActor in 
+                        self?.activeTaskConsoleOutput += out
+                        self?.parseProgressOutput(out, defaultMessage: "Uninstalling \(name)...") 
+                    }
                 }
             )
             self.lastError = nil
@@ -277,24 +480,63 @@ public final class BrewService: ObservableObject {
         }
     }
 
+    public func config() async throws -> [BrewConfigSection] {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).config()
+
+        do {
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 30
+            )
+            self.lastError = nil
+            return outputParser.parseConfig(output)
+        } catch {
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
     @discardableResult
-    public func doctor() async throws -> String {
+    public func doctor() async throws -> [DoctorIssue] {
         isRunningDoctor = true
         defer { isRunningDoctor = false }
 
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).doctor()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).doctor(json: true)
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 120,
+                allowNonZeroExit: true
+            )
             self.lastError = nil
+            return outputParser.parseDoctor(output)
+        } catch {
+            // `doctor` can fail completely if the install is severely broken.
+            let handled = errorHandler.handle(error)
+            self.lastError = handled
+            throw handled
+        }
+    }
+
+    public func dryRunUpgradeAll() async throws -> String {
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(dryRun: true)
+        
+        do {
+            let output = try await processManager.execute(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 30
+            )
             return output
         } catch {
             let handled = errorHandler.handle(error)
-            self.lastError = handled
-            // Even if it failed (e.g., 1 cask out of 25 failed), refresh the state!
-            try? await refreshInstalledPackages()
-            try? await checkForUpdates()
             throw handled
         }
     }

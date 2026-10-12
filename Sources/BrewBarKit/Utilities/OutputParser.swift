@@ -56,6 +56,92 @@ public struct BrewServiceEntry: Codable, Sendable {
 public struct OutputParser: Sendable {
     public init() {}
 
+    private struct DoctorJSONError: Codable {
+        let warning: String?
+        let error: String?
+    }
+
+    public func parseDoctor(_ output: String) -> [DoctorIssue] {
+        // Try parsing as JSON first
+        if let data = output.data(using: .utf8),
+           let jsonIssues = try? JSONDecoder().decode([DoctorJSONError].self, from: data) {
+            
+            var parsedIssues: [DoctorIssue] = []
+            for issue in jsonIssues {
+                if let warning = issue.warning {
+                    parsedIssues.append(parseDoctorTextIssue(warning, severity: .warning))
+                }
+                if let error = issue.error {
+                    parsedIssues.append(parseDoctorTextIssue(error, severity: .error))
+                }
+            }
+            return parsedIssues.sorted { $0.severity > $1.severity }
+        }
+        
+        // Fallback to plain text parsing
+        // Brew doctor output format:
+        // Warning: Some warning summary here
+        //   Details line 1
+        //   Details line 2
+        var issues: [DoctorIssue] = []
+        let blocks = output.components(separatedBy: "\nWarning: ")
+        
+        for (index, block) in blocks.enumerated() {
+            let isFirst = index == 0
+            let text = isFirst ? block : "Warning: " + block
+            
+            if text.starts(with: "Warning: ") || text.starts(with: "Error: ") {
+                let isError = text.starts(with: "Error: ")
+                let severity: DoctorIssue.Severity = isError ? .error : .warning
+                
+                let issueText = text.replacingOccurrences(of: isError ? "Error: " : "Warning: ", with: "")
+                issues.append(parseDoctorTextIssue(issueText, severity: severity))
+            } else if let warningRange = text.range(of: "Warning: ") {
+                let actualText = String(text[warningRange.lowerBound...])
+                let issueText = actualText.replacingOccurrences(of: "Warning: ", with: "")
+                issues.append(parseDoctorTextIssue(issueText, severity: .warning))
+            }
+        }
+        
+        return issues.sorted { $0.severity > $1.severity }
+    }
+    
+    private func parseDoctorTextIssue(_ text: String, severity: DoctorIssue.Severity) -> DoctorIssue {
+        let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let summary = lines.first ?? "Unknown issue"
+        let details = lines.dropFirst().joined(separator: "\n")
+        
+        var fixCommand: [String]? = nil
+        for line in lines {
+            if line.hasPrefix("brew ") {
+                let parts = line.components(separatedBy: " ")
+                fixCommand = Array(parts.dropFirst())
+            }
+        }
+        return DoctorIssue(severity: severity, summary: summary, details: details, fixCommand: fixCommand)
+    }
+
+    public func parseConfig(_ output: String) -> [BrewConfigSection] {
+        var sections: [BrewConfigSection] = []
+        let lines = output.components(separatedBy: "\n")
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            
+            let parts = line.split(separator: ":", maxSplits: 1).map(String.init)
+            if parts.count == 2 {
+                let title = parts[0].trimmingCharacters(in: .whitespaces)
+                let content = parts[1].trimmingCharacters(in: .whitespaces)
+                sections.append(BrewConfigSection(title: title, content: content))
+            } else {
+                sections.append(BrewConfigSection(title: "Other", content: trimmed))
+            }
+        }
+        
+        return sections
+    }
+
     public func parseServices(_ jsonString: String) throws -> [BrewServiceStatus] {
         guard let data = jsonString.data(using: .utf8) else {
             throw BrewBarError.parseError("Invalid UTF-8 string")

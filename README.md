@@ -8,7 +8,7 @@ BrewBar is the ultimate macOS-native GUI for Homebrew, bringing the power of the
 
 BrewBar bridges the gap between CLI power-users and Mac aesthetics with incredible features:
 
-1. **Native Spatial Design:** Implements macOS 27 Liquid Glass and Apple HIG 2026 specs. Unclipped scroll edges, dynamic SF Symbols, and scale-effect spatial hovering on package cards.
+1. **Native Spatial Design:** Uses the Liquid Glass materials, dynamic SF Symbols and hover effects available on macOS 26.
 2. **Deep Spotlight Integration:** CoreSpotlight securely indexes your locally installed formulas so you can find and launch them instantly from your Mac's native Cmd+Space search bar. Deep-linking seamlessly opens BrewBar straight to the package details.
 3. **SwiftData History Manager:** Every single `brew install`, `upgrade`, or `uninstall` is permanently tracked via an ultra-fast, local-first SwiftData `@Model`. View timeline history and expand entries to read exactly what happened in the terminal.
 4. **Rich Metadata & Terminal Fallbacks:** Fetches rich GitHub Publisher details and "Last Updated" dates instantly. Includes a built-in terminal parser that extracts the `man` or `--help` pages of any package directly into a native scroll view!
@@ -20,8 +20,8 @@ BrewBar bridges the gap between CLI power-users and Mac aesthetics with incredib
 BrewBar is designed for maximum security and privacy. 
 * **100% Local Execution:** BrewBar acts strictly as a GUI proxy for your local `brew` binary. It does not phone home, nor does it track your installs.
 * **No Telemetry:** We explicitly provide an "Opt-out of Homebrew Analytics" button that triggers `brew analytics off` to completely lock down your installation.
-* **Secure Enclave Keychain:** GitHub tokens (used *only* to increase API rate limits for fetching Stargazers and Publishers) are encrypted and stored directly in the Apple Keychain. 
-* **Safe Subprocesses:** Under the hood, BrewBar runs sandboxed `Process` executions securely routing arguments, making it completely immune to malicious shell injections.
+* **Keychain:** GitHub tokens (used *only* to increase API rate limits for fetching Stargazers and Publishers) are encrypted and stored directly in the Apple Keychain. 
+* **Safe Subprocesses:** Under the hood, BrewBar runs Homebrew through `Process` with an argument array and no shell, so package names are never interpreted as shell syntax. The app itself is not sandboxed.
 
 ## Copyright
 All `.swift` source code files are copyright protected.

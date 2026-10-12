@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+- Live task console with the exact command, streamed output and a Cancel button.
+- Doctor screen (`brew doctor --json`, text fallback) and Configuration screen (`brew config`).
+- Services actions run through the shared progress pipeline and History; Restart offered for failed services; Show Log when `brew services info` reports a log path.
+- Preview before uninstall and before Update All.
+- Added tap/untap, pin/unpin, autoremove, reinstall, link/unlink and bundle commands to `BrewCommandBuilder`.
+- Sidebar shortcuts ⌘1–⌘9; About moved to the app menu.
+
+### Changed
+- README no longer claims sandboxing, shell-injection immunity, Secure Enclave storage or macOS 27 / HIG 2026 support.
+
 ### Fixed
 - **Security**: `ProcessManager` now executes `brew` via an explicit executable
   path and argument array instead of `/bin/bash -c`, removing the shell-injection
