@@ -125,4 +125,36 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertTrue(formulae.isEmpty)
         XCTAssertTrue(casks.isEmpty)
     }
+
+    func testStorageRowUninstallTargetRoutesThroughBrew() {
+        // Cellar/Caskroom top-level entries must resolve to a brew
+        // uninstall target — deleting their files directly would leave
+        // Homebrew's install receipts pointing at nothing.
+        let formulaRow = StorageRow(name: "wget", path: "/opt/homebrew/Cellar/wget", sizeInBytes: 100, isDirectory: true, kind: .cellarFormula)
+        XCTAssertEqual(formulaRow.uninstallTarget?.name, "wget")
+        XCTAssertEqual(formulaRow.uninstallTarget?.type, .formula)
+        XCTAssertFalse(formulaRow.isDirectlyTrashable)
+
+        let caskRow = StorageRow(name: "docker", path: "/opt/homebrew/Caskroom/docker", sizeInBytes: 100, isDirectory: true, kind: .caskApp)
+        XCTAssertEqual(caskRow.uninstallTarget?.type, .cask)
+    }
+
+    func testStorageRowNestedTrashability() {
+        // Only cache/log entries are safe to delete directly; a version
+        // folder nested inside Cellar/Caskroom is not.
+        let cacheFile = StorageRow(name: "wget-1.21.3.tar.gz", path: "/tmp/cache/wget-1.21.3.tar.gz", sizeInBytes: 50, isDirectory: false, kind: .nested(trashable: true))
+        XCTAssertTrue(cacheFile.isDirectlyTrashable)
+        XCTAssertNil(cacheFile.uninstallTarget)
+
+        let cellarVersionFolder = StorageRow(name: "1.21.3", path: "/opt/homebrew/Cellar/wget/1.21.3", sizeInBytes: 50, isDirectory: true, kind: .nested(trashable: false))
+        XCTAssertFalse(cellarVersionFolder.isDirectlyTrashable)
+        XCTAssertNil(cellarVersionFolder.uninstallTarget)
+    }
+
+    func testStorageRowIsNavigableOnlyForDirectories() {
+        let dir = StorageRow(name: "Cellar", path: "/opt/homebrew/Cellar", sizeInBytes: 0, isDirectory: true, kind: .category(.cellar))
+        let file = StorageRow(name: "archive.tar.gz", path: "/tmp/archive.tar.gz", sizeInBytes: 0, isDirectory: false, kind: .nested(trashable: true))
+        XCTAssertTrue(dir.isNavigable)
+        XCTAssertFalse(file.isNavigable)
+    }
 }

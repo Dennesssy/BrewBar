@@ -72,6 +72,7 @@ struct ContentView: View {
         case installed = "Installed"
         case updates = "Updates"
         case services = "Services"
+        case storage = "Storage"
         case history = "History"
         case search = "Search"
         case settings = "Settings"
@@ -93,6 +94,7 @@ struct ContentView: View {
             case .installed: return "shippingbox"
             case .updates: return "arrow.triangle.2.circlepath"
             case .services: return "gearshape.2"
+            case .storage: return "externaldrive"
             case .history: return "clock"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
@@ -212,6 +214,8 @@ struct ContentView: View {
             UpdatesView()
         case .services:
             ServicesView()
+        case .storage:
+            StorageView()
         case .history:
             HistoryView()
         case .search:

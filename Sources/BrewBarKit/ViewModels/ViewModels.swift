@@ -2,6 +2,7 @@
 
 import Foundation
 import Combine
+import AppKit
 
 @MainActor
 public final class HomeViewModel: ObservableObject {
@@ -193,13 +194,11 @@ public final class FormulaDetailViewModel: ObservableObject {
                     lastUpdated = formatter.date(from: updatedStr)
                 }
                 
-                DispatchQueue.main.async { 
-                    self.githubStars = stars
-                    self.githubPublisher = publisher
-                    self.githubLastUpdated = lastUpdated
-                }
+                self.githubStars = stars
+                self.githubPublisher = publisher
+                self.githubLastUpdated = lastUpdated
             }
-            
+
             // Fetch Readme
             if let req = makeRequest(for: "https://api.github.com/repos/\(targetRepo)/readme"),
                let (data, _) = try? await URLSession.shared.data(for: req),
@@ -208,22 +207,22 @@ public final class FormulaDetailViewModel: ObservableObject {
                 let cleanedContent = content.replacingOccurrences(of: "\n", with: "")
                 if let decodedData = Data(base64Encoded: cleanedContent),
                    let readmeString = String(data: decodedData, encoding: .utf8) {
-                    DispatchQueue.main.async { self.githubReadme = readmeString }
+                    self.githubReadme = readmeString
                 }
             }
-            
-            DispatchQueue.main.async { self.isFetchingDetails = false }
+
+            self.isFetchingDetails = false
         }
     }
 
     private func fetchManPage() async {
         let processManager = ProcessManager()
-        
+
         // Try getting the man page first
         do {
             let output = try await processManager.execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
             if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
-                DispatchQueue.main.async { self.manPage = output }
+                self.manPage = output
                 return
             }
         } catch {}
@@ -236,7 +235,7 @@ public final class FormulaDetailViewModel: ObservableObject {
             // But we don't know the exact binary path. We could try using bash.
             let binOutput = try await processManager.execute(executablePath: "/bin/bash", arguments: ["-c", "\"$0\" --help", formula.name])
             if !binOutput.isEmpty {
-                DispatchQueue.main.async { self.manPage = binOutput }
+                self.manPage = binOutput
             }
         } catch {}
     }
@@ -266,7 +265,7 @@ public final class PreferencesViewModel: ObservableObject {
         Task {
             self.preferences = await LocalStorageManager.shared.loadPreferences()
             if let token = try? KeychainManager.shared.retrieveToken(service: "com.dennesssy.brewbar.github") {
-                DispatchQueue.main.async { self.githubToken = token }
+                self.githubToken = token
             }
         }
     }
@@ -355,5 +354,131 @@ public final class DiscoverViewModel: ObservableObject {
                 )
             )
         ]
+    }
+}
+
+/// One entry in the Storage tab's breadcrumb trail.
+public struct StorageBreadcrumb: Sendable, Identifiable, Hashable {
+    public let id: String // path, or "root" for the top level
+    public let title: String
+    /// `nil` at the root; the category this crumb (or a folder beneath it) belongs to.
+    public let category: DiskUsageCategory?
+    public let path: String?
+    public let isTopLevel: Bool
+}
+
+/// Drives the ncdu-style Storage tab: a self-managed drill-down through
+/// Homebrew's real Cellar/Caskroom/cache/log directories, rather than
+/// NavigationLink push navigation — closer to how `ncdu` itself feels, and
+/// avoids depending on NavigationSplitView's detail column nesting a stack.
+@MainActor
+public final class StorageViewModel: ObservableObject {
+    @Published public private(set) var rows: [StorageRow] = []
+    @Published public private(set) var breadcrumbs: [StorageBreadcrumb] = [
+        StorageBreadcrumb(id: "root", title: "Homebrew", category: nil, path: nil, isTopLevel: false)
+    ]
+    @Published public private(set) var isLoading = false
+    @Published public var pendingUninstall: StorageRow?
+    @Published public var pendingTrash: StorageRow?
+    @Published public var actionError: String?
+
+    private let diskUsage = DiskUsageService.shared
+    private let brewService = BrewService.shared
+
+    public init() {}
+
+    public var maxRowBytes: UInt64 { rows.map(\.sizeInBytes).max() ?? 0 }
+    public var totalBytes: UInt64 { rows.reduce(0) { $0 + $1.sizeInBytes } }
+    public var isAtRoot: Bool { breadcrumbs.count == 1 }
+
+    public func loadRoot() async {
+        isLoading = true
+        defer { isLoading = false }
+        let prefs = await LocalStorageManager.shared.loadPreferences()
+        rows = await diskUsage.categorySummary(brewPath: prefs.homebrewPrefix)
+    }
+
+    public func refresh() async {
+        if isAtRoot {
+            await loadRoot()
+        } else {
+            await reloadCurrentLevel()
+        }
+    }
+
+    public func drillIn(_ row: StorageRow) async {
+        guard row.isNavigable else { return }
+
+        let category: DiskUsageCategory?
+        let isTopLevel: Bool
+        switch row.kind {
+        case .category(let cat):
+            category = cat
+            isTopLevel = true
+        case .cellarFormula, .caskApp, .nested:
+            category = breadcrumbs.last?.category
+            isTopLevel = false
+        }
+        guard let category else { return }
+
+        breadcrumbs.append(StorageBreadcrumb(id: row.path, title: row.name, category: category, path: row.path, isTopLevel: isTopLevel))
+        await reloadCurrentLevel()
+    }
+
+    /// Jump back to an earlier breadcrumb (including the root).
+    public func jump(to index: Int) async {
+        guard index >= 0, index < breadcrumbs.count, index != breadcrumbs.count - 1 else { return }
+        breadcrumbs.removeSubrange((index + 1)...)
+        await reloadCurrentLevel()
+    }
+
+    private func reloadCurrentLevel() async {
+        guard let current = breadcrumbs.last else { return }
+        guard let path = current.path, let category = current.category else {
+            await loadRoot()
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+        rows = await diskUsage.entries(in: path, category: category, isTopLevel: current.isTopLevel)
+    }
+
+    public func revealInFinder(_ row: StorageRow) {
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: row.path)])
+    }
+
+    public func confirmTrash(_ row: StorageRow) {
+        guard row.isDirectlyTrashable else { return }
+        pendingTrash = row
+    }
+
+    public func performPendingTrash() async {
+        guard let row = pendingTrash else { return }
+        pendingTrash = nil
+        do {
+            try await diskUsage.trash(path: row.path)
+            actionError = nil
+            await reloadCurrentLevel()
+        } catch {
+            actionError = "Couldn't move \"\(row.name)\" to the Trash: \(error.localizedDescription)"
+        }
+    }
+
+    public func confirmUninstall(_ row: StorageRow) {
+        guard row.uninstallTarget != nil else { return }
+        pendingUninstall = row
+    }
+
+    public func performPendingUninstall() async {
+        guard let row = pendingUninstall, let target = row.uninstallTarget else { return }
+        pendingUninstall = nil
+        do {
+            try await brewService.uninstallFormula(target.name, type: target.type)
+            actionError = nil
+            await reloadCurrentLevel()
+        } catch {
+            actionError = "Couldn't uninstall \"\(row.name)\": \(error.localizedDescription)"
+        }
     }
 }
