@@ -26,3 +26,6 @@ patch_*.py
 
 # macOS
 .DS_Store
+
+# aider local state
+.aider*
