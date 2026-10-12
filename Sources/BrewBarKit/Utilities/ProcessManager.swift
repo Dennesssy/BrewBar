@@ -79,6 +79,36 @@ public actor ProcessManager {
 
     public typealias OutputHandler = @Sendable (String) -> Void
 
+    private static func writeAskpassHelper() -> String? {
+        let fileManager = FileManager.default
+        let directory = fileManager.temporaryDirectory.appendingPathComponent("BrewBar-askpass", isDirectory: true)
+        let path = directory.appendingPathComponent("askpass.sh").path
+        let script = """
+        #!/bin/bash
+        osascript -e 'tell application "SystemUIServer" to activate' -e 'tell application "SystemUIServer" to text returned of (display dialog "Homebrew requires your administrator password to continue." default answer "" with hidden answer with title "BrewBar Authentication")'
+        """
+        do {
+            try fileManager.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            try fileManager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            if fileManager.fileExists(atPath: path) {
+                try fileManager.removeItem(atPath: path)
+            }
+            // Created with 0700 up front, so there is no window where the script is more permissive.
+            guard fileManager.createFile(
+                atPath: path,
+                contents: Data(script.utf8),
+                attributes: [.posixPermissions: 0o700]
+            ) else { return nil }
+            return path
+        } catch {
+            return nil
+        }
+    }
+
     public func execute(
         executablePath: String,
         arguments: [String],
@@ -99,16 +129,11 @@ public actor ProcessManager {
             env["HOMEBREW_NO_ENV_HINTS"] = "1"
             
             // Generate an Apple-approved native authentication dialog for sudo prompts
-            let askpassPath = FileManager.default.temporaryDirectory.appendingPathComponent("brewbar_askpass.sh").path
-            if !FileManager.default.fileExists(atPath: askpassPath) {
-                let script = """
-                #!/bin/bash
-                osascript -e 'tell application "SystemUIServer" to activate' -e 'tell application "SystemUIServer" to text returned of (display dialog "Homebrew requires your administrator password to manage a Cask." default answer "" with hidden answer with title "BrewBar Authentication")'
-                """
-                try? script.write(toFile: askpassPath, atomically: true, encoding: .utf8)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: askpassPath)
+            // The helper lives in a private (0700) per-user directory and is rewritten on every
+            // run, so a stale or tampered copy is never executed with the user's sudo prompt.
+            if let askpassPath = ProcessManager.writeAskpassHelper() {
+                env["SUDO_ASKPASS"] = askpassPath
             }
-            env["SUDO_ASKPASS"] = askpassPath
             
             process.environment = env
 

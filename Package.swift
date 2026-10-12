@@ -31,9 +31,6 @@ let package = Package(
             name: "BrewBarApp",
             dependencies: ["BrewBarKit"],
             path: "Sources/BrewBarApp",
-            linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-entitlements", "-Xlinker", "BrewBar.entitlements"])
-            ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

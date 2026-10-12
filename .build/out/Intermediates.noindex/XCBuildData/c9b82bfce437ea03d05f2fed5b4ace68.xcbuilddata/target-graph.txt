@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'BrewBar-product' in project 'BrewBar'
-➜ Explicit dependency on target 'BrewBarKit' in project 'BrewBar'
-Target 'BrewBarKit' in project 'BrewBar' (no dependencies)
