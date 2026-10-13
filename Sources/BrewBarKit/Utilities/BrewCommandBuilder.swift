@@ -262,6 +262,23 @@ public struct BrewCommandBuilder: Sendable {
         return String(filtered)
     }
 
+
+    public func vulns(json: Bool = false) -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "vulns"
+        if json {
+            copy.flags.append("--json")
+        }
+        return copy
+    }
+
+    public func vulnsListSkipped() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "vulns"
+        copy.flags.append("--list-skipped")
+        return copy
+    }
+
     public func buildArguments() -> [String] {
         var components: [String] = []
         if !subcommand.isEmpty {

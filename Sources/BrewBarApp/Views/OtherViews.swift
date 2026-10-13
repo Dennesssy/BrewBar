@@ -368,6 +368,13 @@ public struct PreferencesView: View {
                 TextField("Homebrew Path", text: $viewModel.preferences.homebrewPrefix)
             }
             
+            Section("Security") {
+                Toggle("Allow vulnerability lookups", isOn: $viewModel.preferences.allowVulnerabilityLookups)
+                Text("Sends installed package names/versions to OSV.dev to detect known vulnerabilities.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
             Section("Privacy") {
                 VStack(alignment: .leading, spacing: 4) {
                     Button("Opt-out of Homebrew Analytics") {

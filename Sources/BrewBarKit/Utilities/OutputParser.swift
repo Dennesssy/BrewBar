@@ -56,9 +56,82 @@ public struct BrewServiceEntry: Codable, Sendable {
 public struct OutputParser: Sendable {
     public init() {}
 
+
+    private struct VulnsJSONVulnerability: Codable {
+        let id: String? // CVE or GHSA
+        let cve: String?
+        let summary: String?
+        let severity: String?
+        let fixed_in: String?
+    }
+    
+    private struct VulnsJSONPackage: Codable {
+        let name: String
+        let version: String?
+        let vulnerabilities: [VulnsJSONVulnerability]?
+    }
+    
+    private struct VulnsJSONSkipped: Codable {
+        let name: String
+        let reason: String?
+    }
+    
+    private struct VulnsJSONRoot: Codable {
+        let vulnerabilities: [VulnsJSONPackage]?
+        let skipped: [VulnsJSONSkipped]?
+    }
+
     private struct DoctorJSONError: Codable {
         let warning: String?
         let error: String?
+    }
+
+
+    public func parseVulnsJSON(_ output: String) -> (vulnerablePackages: [VulnerablePackage], skippedPackages: [SkippedPackage]) {
+        guard let data = output.data(using: .utf8) else { return ([], []) }
+        
+        do {
+            let root = try JSONDecoder().decode(VulnsJSONRoot.self, from: data)
+            
+            var vulnerablePackages: [VulnerablePackage] = []
+            if let packages = root.vulnerabilities {
+                for pkg in packages {
+                    var vulns: [Vulnerability] = []
+                    if let rawVulns = pkg.vulnerabilities {
+                        for v in rawVulns {
+                            vulns.append(Vulnerability(
+                                cve: v.cve ?? v.id ?? "Unknown",
+                                summary: v.summary ?? "No summary provided",
+                                severity: v.severity ?? "Unknown",
+                                fixedIn: v.fixed_in
+                            ))
+                        }
+                    }
+                    
+                    if !vulns.isEmpty {
+                        vulnerablePackages.append(VulnerablePackage(
+                            package: pkg.name,
+                            version: pkg.version ?? "Unknown",
+                            vulnerabilities: vulns.sorted(by: { $0.severityScore > $1.severityScore })
+                        ))
+                    }
+                }
+            }
+            
+            var skippedPackages: [SkippedPackage] = []
+            if let skipped = root.skipped {
+                for s in skipped {
+                    skippedPackages.append(SkippedPackage(
+                        package: s.name,
+                        reason: s.reason ?? "Unknown reason"
+                    ))
+                }
+            }
+            
+            return (vulnerablePackages, skippedPackages)
+        } catch {
+            return ([], [])
+        }
     }
 
     public func parseDoctor(_ output: String) -> [DoctorIssue] {

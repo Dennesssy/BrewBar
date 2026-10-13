@@ -157,4 +157,109 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertTrue(dir.isNavigable)
         XCTAssertFalse(file.isNavigable)
     }
+
+    func testBrewCommandBuilderOperations() {
+        let builder = BrewCommandBuilder(brewPath: "/usr/local/bin/brew")
+        
+        XCTAssertEqual(builder.tap("homebrew/core").buildArguments(), ["tap", "homebrew/core"])
+        XCTAssertEqual(builder.untap("homebrew/core").buildArguments(), ["untap", "homebrew/core"])
+        XCTAssertEqual(builder.pin("python").buildArguments(), ["pin", "python"])
+        XCTAssertEqual(builder.unpin("python").buildArguments(), ["unpin", "python"])
+        XCTAssertEqual(builder.autoremove(dryRun: false).buildArguments(), ["autoremove"])
+        XCTAssertEqual(builder.autoremove(dryRun: true).buildArguments(), ["autoremove", "-n"])
+        XCTAssertEqual(builder.reinstall("python", type: .formula).buildArguments(), ["reinstall", "--formula", "python"])
+        XCTAssertEqual(builder.link("python").buildArguments(), ["link", "python"])
+        XCTAssertEqual(builder.unlink("python").buildArguments(), ["unlink", "python"])
+        XCTAssertEqual(builder.bundleDump(file: "Brewfile").buildArguments(), ["bundle", "dump", "--file=Brewfile"])
+        XCTAssertEqual(builder.bundleInstall(file: "Brewfile").buildArguments(), ["bundle", "install", "--file=Brewfile"])
+    }
+
+    func testOutputParserDoctorConfig() throws {
+        let parser = OutputParser()
+        
+        let doctorJson = """
+        [
+            {
+                "warning": "You have unlinked kegs in your Cellar.\\nLeaving kegs unlinked can lead to build-trouble and cause formulae that depend on those kegs to fail to run properly once built.\\n\\n  node"
+            }
+        ]
+        """
+        let doctorJsonIssues = parser.parseDoctor(doctorJson)
+        XCTAssertEqual(doctorJsonIssues.count, 1)
+        XCTAssertEqual(doctorJsonIssues[0].severity, .warning)
+        XCTAssertTrue(doctorJsonIssues[0].summary.contains("unlinked kegs"))
+        
+        let doctorText = """
+        Please note that these warnings are just used to help the Homebrew maintainers
+        with debugging if you file an issue. If everything you use Homebrew for is
+        working fine: please don't worry or file an issue; just ignore this. Thanks!
+        
+        Warning: You have unlinked kegs in your Cellar.
+        Leaving kegs unlinked can lead to build-trouble and cause formulae that depend on those kegs to fail to run properly once built.
+        
+          node
+        """
+        let doctorTextIssues = parser.parseDoctor(doctorText)
+        XCTAssertEqual(doctorTextIssues.count, 1)
+        XCTAssertEqual(doctorTextIssues[0].severity, .warning)
+        XCTAssertTrue(doctorTextIssues[0].summary.contains("unlinked kegs"))
+        
+        let configOutput = """
+        HOMEBREW_VERSION: 4.1.0
+        ORIGIN: https://github.com/Homebrew/brew
+        HOMEBREW_PREFIX: /opt/homebrew
+        HOMEBREW_REPOSITORY: /opt/homebrew
+        HOMEBREW_CELLAR: /opt/homebrew/Cellar
+        """
+        let configSections = parser.parseConfig(configOutput)
+        XCTAssertGreaterThan(configSections.count, 0)
+    }
+
+    func testVulnsJsonParser() {
+        let parser = OutputParser()
+        let json = """
+        {
+          "vulnerabilities": [
+            {
+              "name": "openssl@3",
+              "version": "3.1.4",
+              "vulnerabilities": [
+                {
+                  "id": "CVE-2023-5678",
+                  "summary": "Poly1305 MAC invalid on Windows",
+                  "severity": "High",
+                  "fixed_in": "3.1.5"
+                }
+              ]
+            }
+          ],
+          "skipped": [
+            {
+              "name": "custom-pkg",
+              "reason": "Not from a recognized tap"
+            }
+          ]
+        }
+        """
+        
+        let (vulns, skipped) = parser.parseVulnsJSON(json)
+        XCTAssertEqual(vulns.count, 1)
+        XCTAssertEqual(vulns[0].package, "openssl@3")
+        XCTAssertEqual(vulns[0].vulnerabilities.count, 1)
+        XCTAssertEqual(vulns[0].vulnerabilities[0].cve, "CVE-2023-5678")
+        XCTAssertEqual(vulns[0].vulnerabilities[0].fixedIn, "3.1.5")
+        
+        XCTAssertEqual(skipped.count, 1)
+        XCTAssertEqual(skipped[0].package, "custom-pkg")
+        
+        let emptyJson = "{}"
+        let (emptyVulns, emptySkipped) = parser.parseVulnsJSON(emptyJson)
+        XCTAssertEqual(emptyVulns.count, 0)
+        XCTAssertEqual(emptySkipped.count, 0)
+        
+        let malformedJson = "{ vulnerabilities: [}"
+        let (malformedVulns, malformedSkipped) = parser.parseVulnsJSON(malformedJson)
+        XCTAssertEqual(malformedVulns.count, 0)
+        XCTAssertEqual(malformedSkipped.count, 0)
+    }
 }

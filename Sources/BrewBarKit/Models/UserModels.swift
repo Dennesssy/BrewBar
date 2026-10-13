@@ -51,6 +51,8 @@ public struct UserPreferences: Codable, Sendable, Hashable {
     public var updateCheckInterval: TimeInterval
     public var defaultShell: String
     public var homebrewPrefix: String
+    /// Opt-in: `brew vulns` sends package names and versions to OSV.dev.
+    public var allowVulnerabilityLookups: Bool
 
     public init(
         launchAtLogin: Bool = true,
@@ -59,7 +61,8 @@ public struct UserPreferences: Codable, Sendable, Hashable {
         darkMode: DarkModeSetting = .system,
         updateCheckInterval: TimeInterval = 3600,
         defaultShell: String = "zsh",
-        homebrewPrefix: String = HomebrewPath.defaultBrewExecutable
+        homebrewPrefix: String = HomebrewPath.defaultBrewExecutable,
+        allowVulnerabilityLookups: Bool = false
     ) {
         self.launchAtLogin = launchAtLogin
         self.showMenuBarIcon = showMenuBarIcon
@@ -68,6 +71,26 @@ public struct UserPreferences: Codable, Sendable, Hashable {
         self.updateCheckInterval = updateCheckInterval
         self.defaultShell = defaultShell
         self.homebrewPrefix = homebrewPrefix
+        self.allowVulnerabilityLookups = allowVulnerabilityLookups
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case launchAtLogin, showMenuBarIcon, checkForAppUpdates, darkMode
+        case updateCheckInterval, defaultShell, homebrewPrefix, allowVulnerabilityLookups
+    }
+
+    // Preferences saved by older versions lack `allowVulnerabilityLookups`;
+    // default it to off rather than failing to decode.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        launchAtLogin = try c.decode(Bool.self, forKey: .launchAtLogin)
+        showMenuBarIcon = try c.decode(Bool.self, forKey: .showMenuBarIcon)
+        checkForAppUpdates = try c.decode(Bool.self, forKey: .checkForAppUpdates)
+        darkMode = try c.decode(DarkModeSetting.self, forKey: .darkMode)
+        updateCheckInterval = try c.decode(TimeInterval.self, forKey: .updateCheckInterval)
+        defaultShell = try c.decode(String.self, forKey: .defaultShell)
+        homebrewPrefix = try c.decode(String.self, forKey: .homebrewPrefix)
+        allowVulnerabilityLookups = try c.decodeIfPresent(Bool.self, forKey: .allowVulnerabilityLookups) ?? false
     }
 }
 

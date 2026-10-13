@@ -127,6 +127,7 @@ public actor ProcessManager {
         arguments: [String],
         timeout: TimeInterval = 300,
         allowNonZeroExit: Bool = false,
+        extraEnvironment: [String: String]? = nil,
         outputHandler: OutputHandler? = nil
     ) async throws -> String {
         isRunning = true
@@ -147,6 +148,12 @@ public actor ProcessManager {
             // run, so a stale or tampered copy is never executed with the user's sudo prompt.
             if let askpassPath = ProcessManager.writeAskpassHelper() {
                 env["SUDO_ASKPASS"] = askpassPath
+            }
+            
+            if let extraEnv = extraEnvironment {
+                for (key, value) in extraEnv {
+                    env[key] = value
+                }
             }
             
             process.environment = env

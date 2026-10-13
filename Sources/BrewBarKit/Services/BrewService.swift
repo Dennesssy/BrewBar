@@ -190,7 +190,8 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: args,
-                timeout: 30
+                timeout: 30,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
             self.lastError = nil
             return output.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -297,7 +298,8 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 30
+                timeout: 30,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
             return output
         } catch {
@@ -346,7 +348,7 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).listInstalledInfo()
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"])
             var packages = try outputParser.parseInstalledPackages(output)
 
             let sizes = await computeInstalledSizes(brewPath: prefs.homebrewPrefix)
@@ -488,7 +490,8 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 30
+                timeout: 30,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
             self.lastError = nil
             return outputParser.parseConfig(output)
@@ -512,7 +515,8 @@ public final class BrewService: ObservableObject {
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
                 timeout: 120,
-                allowNonZeroExit: true
+                allowNonZeroExit: true,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
             self.lastError = nil
             return outputParser.parseDoctor(output)
@@ -532,7 +536,8 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 30
+                timeout: 30,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
             return output
         } catch {
@@ -546,7 +551,7 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true)
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"])
             let (formulas, casks) = try outputParser.parseOutdatedPackages(output)
 
             var updates: [FormulaItem] = []

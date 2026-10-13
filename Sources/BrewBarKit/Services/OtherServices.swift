@@ -58,7 +58,7 @@ public final class ServicesManager: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesList()
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"])
             self.services = try outputParser.parseServices(output)
             self.lastError = nil
         } catch {
@@ -83,7 +83,7 @@ public final class ServicesManager: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesInfo(name)
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments())
+            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"])
             if let data = output.data(using: .utf8),
                let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
                let first = jsonArray.first,

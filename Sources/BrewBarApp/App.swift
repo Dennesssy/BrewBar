@@ -85,6 +85,7 @@ struct ContentView: View {
         case storage = "Storage"
         case history = "History"
         case doctor = "Doctor"
+        case security = "Security"
         case config = "Configuration"
         case search = "Search"
         case settings = "Settings"
@@ -109,6 +110,7 @@ struct ContentView: View {
             case .storage: return "externaldrive"
             case .history: return "clock"
             case .doctor: return "stethoscope"
+            case .security: return "lock.shield"
             case .config: return "slider.horizontal.3"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
@@ -213,6 +215,8 @@ struct ContentView: View {
             HistoryView()
         case .doctor:
             DoctorView()
+        case .security:
+            SecurityView()
         case .config:
             ConfigView()
         case .search:

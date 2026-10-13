@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+- Security tab: `brew vulns --json` results grouped by severity, packages that could not be checked, per-package upgrade, optional CISA known-exploited badges and read-only checks of this Mac. Lookups send package names and versions to OSV.dev, so they are off until enabled (new `allowVulnerabilityLookups` preference, default off).
+- Unit tests for the new brew operations, doctor/config parsing and the vulnerability parser (suite is now 13 tests).
 - Live task console with the exact command, streamed output and a Cancel button.
 - Doctor screen (`brew doctor --json`, text fallback) and Configuration screen (`brew config`).
 - Services actions run through the shared progress pipeline and History; Restart offered for failed services; Show Log when `brew services info` reports a log path.
@@ -13,6 +15,7 @@ All notable changes to this project are documented in this file.
 - Sidebar shortcuts ⌘1–⌘9; About moved to the app menu.
 
 ### Changed
+- Read-only brew queries run with `HOMEBREW_NO_AUTO_UPDATE=1`.
 - README no longer claims sandboxing, shell-injection immunity, Secure Enclave storage or macOS 27 / HIG 2026 support.
 
 ### Fixed
