@@ -230,6 +230,20 @@ public struct FormulaDetailView: View {
                                 .buttonStyle(.glass)
                         }
                     } else {
+                        if BrewService.shared.installedPackages.contains(where: { $0.id == viewModel.formula.id }) {
+                            Button(viewModel.formula.isPinned ? "Unpin" : "Pin") {
+                                Task {
+                                    if viewModel.formula.isPinned {
+                                        try? await BrewService.shared.unpinFormula(viewModel.formula.name)
+                                    } else {
+                                        try? await BrewService.shared.pinFormula(viewModel.formula.name)
+                                    }
+                                    try? await BrewService.shared.refreshInstalledPackages()
+                                }
+                            }
+                            .buttonStyle(.glass)
+                        }
+
                         Button(viewModel.formula.updateAvailable ? "Update" : "Install") {
                             Task { try? await viewModel.install() }
                         }

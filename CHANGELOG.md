@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file.
 ## Unreleased
 
 ### Added
+- Accounts tab: read-only CLI status view for GitHub, Google Cloud, AWS, npm, Vercel, Netlify, Wrangler, Firebase, and 1Password, plus local credential file hygiene checks.
+- Package Detail view now includes a Pin / Unpin button for installed formulas.
 - Security tab: `brew vulns --json` results grouped by severity, packages that could not be checked, per-package upgrade, optional CISA known-exploited badges and read-only checks of this Mac. Lookups send package names and versions to OSV.dev, so they are off until enabled (new `allowVulnerabilityLookups` preference, default off).
 - Unit tests for the new brew operations, doctor/config parsing and the vulnerability parser (suite is now 13 tests).
 - Live task console with the exact command, streamed output and a Cancel button.
@@ -15,6 +17,7 @@ All notable changes to this project are documented in this file.
 - Sidebar shortcuts ⌘1–⌘9; About moved to the app menu.
 
 ### Changed
+- Removed a `/bin/bash` shell call when fetching the `--help` manual page, instead resolving the executable path directly.
 - Read-only brew queries run with `HOMEBREW_NO_AUTO_UPDATE=1`.
 - README no longer claims sandboxing, shell-injection immunity, Secure Enclave storage or macOS 27 / HIG 2026 support.
 

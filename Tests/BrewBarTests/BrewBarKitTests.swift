@@ -262,4 +262,81 @@ final class BrewBarKitTests: XCTestCase {
         XCTAssertEqual(malformedVulns.count, 0)
         XCTAssertEqual(malformedSkipped.count, 0)
     }
+
+    @MainActor
+    func testAccountsViewModelRedactOutput() {
+        let viewModel = AccountsViewModel()
+        
+        let tokenOutput = """
+        Logged in to github.com account dennis (keyring)
+        Token: ghp_1234567890abcdefghijklmnopqrstuvwxyzABCD
+        Secret = some_secret_value
+        Nothing to see here
+        """
+        
+        let redacted = viewModel.redactOutput(tokenOutput)
+        XCTAssertTrue(redacted.contains("Logged in to github.com"))
+        XCTAssertFalse(redacted.contains("Token:"))
+        XCTAssertFalse(redacted.contains("ghp_1234567890"))
+        XCTAssertFalse(redacted.contains("Secret ="))
+        XCTAssertTrue(redacted.contains("Nothing to see here"))
+        
+        // Base64-like long string without keyword
+        let longOutput = """
+        Regular line
+        ThisIsALongBase64LikeStringThatIsOver40CharactersLongAndShouldBeRemovedBecauseItLooksLikeAToken1234
+        End of output
+        """
+        let redactedLong = viewModel.redactOutput(longOutput)
+        XCTAssertTrue(redactedLong.contains("Regular line"))
+        XCTAssertFalse(redactedLong.contains("ThisIsALongBase64LikeString"))
+        XCTAssertTrue(redactedLong.contains("End of output"))
+    }
+    
+    @MainActor
+    func testAccountsViewModelHygieneClassifiers() {
+        XCTAssertFalse(HygieneIssue.isFlagged(permissions: 0o600))
+        XCTAssertTrue(HygieneIssue.isFlagged(permissions: 0o644))
+        XCTAssertTrue(HygieneIssue.isFlagged(permissions: 0o666))
+        XCTAssertFalse(HygieneIssue.isFlagged(permissions: 0o400))
+    }
+
+    @MainActor
+    func testAccountsViewModelGhParser() async {
+        let viewModel = AccountsViewModel()
+        let ghOutput = """
+        github.com
+          ✓ Logged in to github.com account dennis (keyring)
+          - Active account: true
+          - Git operations protocol: https
+          - Token: github_pat_someToken
+        """
+        // In reality, token gets redacted first.
+        let redacted = viewModel.redactOutput(ghOutput)
+        let status = viewModel.parseGHStatus(output: redacted, command: "gh auth status")
+        XCTAssertEqual(status.state, .loggedIn)
+        XCTAssertEqual(status.account, "✓ Logged in to github.com account dennis (keyring)")
+        
+        let notLoggedIn = "You are not logged into any GitHub hosts. Run gh auth login to authenticate."
+        let status2 = viewModel.parseGHStatus(output: notLoggedIn, command: "gh auth status")
+        XCTAssertEqual(status2.state, .notLoggedIn)
+    }
+
+    @MainActor
+    func testAccountsViewModelGcloudParser() async {
+        let viewModel = AccountsViewModel()
+        let gcloudOutput = """
+        dennis@example.com ACTIVE
+        other@example.com
+        """
+        let status = viewModel.parseGcloudStatus(output: gcloudOutput, command: "gcloud auth list")
+        XCTAssertEqual(status.state, .loggedIn)
+        XCTAssertEqual(status.account, "dennis@example.com")
+        
+        let gcloudNotLoggedIn = """
+        other@example.com
+        """
+        let status2 = viewModel.parseGcloudStatus(output: gcloudNotLoggedIn, command: "gcloud auth list")
+        XCTAssertEqual(status2.state, .notLoggedIn)
+    }
 }
