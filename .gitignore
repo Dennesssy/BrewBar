@@ -29,3 +29,5 @@ patch_*.py
 
 # aider local state
 .aider*
+.build-agent*/
+.agents/
