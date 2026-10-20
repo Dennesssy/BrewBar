@@ -215,40 +215,42 @@ public final class FormulaDetailViewModel: ObservableObject {
         }
     }
 
-    private func fetchManPage() async {
-        let processManager = ProcessManager()
+    /// Shared so the catalog memo and doc cache survive across detail views.
+    /// Rebuilt only when the Homebrew path in preferences changes.
+    private static var toolDiscovery: ToolDiscoveryService?
+    private static var toolDiscoveryBrewPath: String?
 
-        // Try getting the man page first
-        do {
-            let output = try await processManager.execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
-            if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
-                self.manPage = ManPageText.stripOverstrike(output)
+    private static func sharedToolDiscovery(brewPath: String) -> ToolDiscoveryService {
+        if let existing = toolDiscovery, toolDiscoveryBrewPath == brewPath {
+            return existing
+        }
+        let service = ToolDiscoveryService(brewPath: brewPath)
+        toolDiscovery = service
+        toolDiscoveryBrewPath = brewPath
+        return service
+    }
+
+    private func fetchManPage() async {
+        // Formulae: resolve the linked binary (ripgrep -> rg) and read its man page or sandboxed --help.
+        if formula.type == .formula {
+            let prefs = await LocalStorageManager.shared.loadPreferences()
+            let discovery = Self.sharedToolDiscovery(brewPath: prefs.homebrewPrefix)
+            let candidates = ((try? await discovery.listTools()) ?? []).filter { $0.formula == formula.name }
+            let chosen = candidates.first { $0.name == formula.name } ?? candidates.min { $0.name < $1.name }
+            if let tool = chosen,
+               let doc = try? await discovery.documentation(for: tool.name),
+               !doc.rawText.isEmpty {
+                self.manPage = doc.rawText
                 return
             }
-        } catch {}
+        }
 
-        // Fallback to --help
+        // Casks and formulae with no binaries: man page under the formula name only.
+        // No --help fallback here: unknown binaries must not run unsandboxed.
         do {
-            // Find the binary path for the formula
-            let paths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]
-            var binaryPath: String?
-            for path in paths {
-                let checkPath = (path as NSString).appendingPathComponent(formula.name)
-                if FileManager.default.isExecutableFile(atPath: checkPath) {
-                    binaryPath = checkPath
-                    break
-                }
-            }
-            
-            if let executablePath = binaryPath {
-                let binOutput = try await processManager.execute(
-                    executablePath: executablePath,
-                    arguments: ["--help"],
-                    timeout: 10
-                )
-                if !binOutput.isEmpty {
-                    self.manPage = binOutput
-                }
+            let output = try await ProcessManager().execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
+            if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
+                self.manPage = ManPageText.stripOverstrike(output)
             }
         } catch {}
     }
