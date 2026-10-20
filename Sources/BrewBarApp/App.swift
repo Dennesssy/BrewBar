@@ -40,9 +40,7 @@ struct BrewBarApp: App {
             }
             Button("Update All Packages") {
                 Task {
-                    // It would require UI for preview and confirmation.
-                    // Instead of full UI in MenuBar, this just uses an NSAlert or triggers it in main window.
-                    try? await BrewService.shared.upgradeAll()
+                    await confirmAndUpgradeAll()
                 }
             }
             Divider()
@@ -60,6 +58,68 @@ struct BrewBarApp: App {
             }
         }
     }
+}
+
+/// Dry-runs `brew upgrade` and asks before upgrading everything from the menu bar.
+@MainActor
+private func confirmAndUpgradeAll() async {
+    let preview: String
+    do {
+        preview = try await BrewService.shared.dryRunUpgradeAll()
+    } catch {
+        showUpgradeAlert(
+            message: "Could not check for upgrades",
+            info: error.localizedDescription,
+            style: .warning,
+            buttons: ["OK"]
+        )
+        return
+    }
+
+    let trimmed = preview.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+        showUpgradeAlert(
+            message: "All packages are up to date",
+            info: "There is nothing to upgrade.",
+            style: .informational,
+            buttons: ["OK"]
+        )
+        return
+    }
+
+    let maxLines = 40
+    var lines = trimmed.components(separatedBy: "\n")
+    if lines.count > maxLines {
+        lines = Array(lines.prefix(maxLines)) + ["…"]
+    }
+
+    let choice = showUpgradeAlert(
+        message: "Upgrade all packages?",
+        info: lines.joined(separator: "\n"),
+        style: .warning,
+        buttons: ["Upgrade", "Cancel"]
+    )
+    guard choice == .alertFirstButtonReturn else { return }
+    try? await BrewService.shared.upgradeAll()
+}
+
+@MainActor
+@discardableResult
+private func showUpgradeAlert(
+    message: String,
+    info: String,
+    style: NSAlert.Style,
+    buttons: [String]
+) -> NSApplication.ModalResponse {
+    NSApp.activate()
+    let alert = NSAlert()
+    alert.alertStyle = style
+    alert.messageText = message
+    alert.informativeText = info
+    for title in buttons {
+        alert.addButton(withTitle: title)
+    }
+    return alert.runModal()
 }
 
 /// Shared bridge for the Discover tab's top search field to hand off a query
@@ -88,6 +148,7 @@ struct ContentView: View {
         case security = "Security"
         case accounts = "Accounts"
         case config = "Configuration"
+        case agentTools = "Agent Tools"
         case search = "Search"
         case settings = "Settings"
         // case about = "About"
@@ -114,6 +175,7 @@ struct ContentView: View {
             case .security: return "lock.shield"
             case .accounts: return "person.2"
             case .config: return "slider.horizontal.3"
+            case .agentTools: return "terminal"
             case .search: return "magnifyingglass"
             case .settings: return "gearshape"
             }
@@ -223,6 +285,8 @@ struct ContentView: View {
             AccountsView()
         case .config:
             ConfigView()
+        case .agentTools:
+            AgentToolsView()
         case .search:
             SearchView()
         case .settings:
