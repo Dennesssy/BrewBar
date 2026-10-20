@@ -222,7 +222,7 @@ public final class FormulaDetailViewModel: ObservableObject {
         do {
             let output = try await processManager.execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
             if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
-                self.manPage = output
+                self.manPage = ManPageText.stripOverstrike(output)
                 return
             }
         } catch {}

@@ -81,9 +81,19 @@ public struct OutputParser: Sendable {
         let skipped: [VulnsJSONSkipped]?
     }
 
-    private struct DoctorJSONError: Codable {
-        let warning: String?
-        let error: String?
+    /// `brew doctor --json` → `{"tier": 1, "findings": [{text, remediation}]}`.
+    private struct DoctorJSONRoot: Codable {
+        let findings: [DoctorJSONFinding]
+    }
+
+    private struct DoctorJSONFinding: Codable {
+        let text: String
+        let remediation: Remediation?
+
+        struct Remediation: Codable {
+            let commands: [String]?
+            let text: String?
+        }
     }
 
 
@@ -137,18 +147,21 @@ public struct OutputParser: Sendable {
     public func parseDoctor(_ output: String) -> [DoctorIssue] {
         // Try parsing as JSON first
         if let data = output.data(using: .utf8),
-           let jsonIssues = try? JSONDecoder().decode([DoctorJSONError].self, from: data) {
-            
-            var parsedIssues: [DoctorIssue] = []
-            for issue in jsonIssues {
-                if let warning = issue.warning {
-                    parsedIssues.append(parseDoctorTextIssue(warning, severity: .warning))
-                }
-                if let error = issue.error {
-                    parsedIssues.append(parseDoctorTextIssue(error, severity: .error))
-                }
+           let root = try? JSONDecoder().decode(DoctorJSONRoot.self, from: data) {
+            // Every doctor finding is printed as "Warning:" in text mode;
+            // the JSON form carries no separate error/warning distinction.
+            return root.findings.map { finding in
+                let lines = finding.text.components(separatedBy: "\n")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                let remediation = finding.remediation?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let details = (Array(lines.dropFirst()) + (remediation.isEmpty ? [] : [remediation]))
+                    .joined(separator: "\n")
+                let fixCommand = finding.remediation?.commands?.first
+                    .map { $0.components(separatedBy: " ").filter { !$0.isEmpty } }
+                    .map { $0.first == "brew" ? Array($0.dropFirst()) : $0 }
+                return DoctorIssue(severity: .warning, summary: lines.first ?? "Unknown issue", details: details, fixCommand: fixCommand)
             }
-            return parsedIssues.sorted { $0.severity > $1.severity }
         }
         
         // Fallback to plain text parsing

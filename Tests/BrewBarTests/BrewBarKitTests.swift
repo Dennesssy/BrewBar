@@ -177,12 +177,15 @@ final class BrewBarKitTests: XCTestCase {
     func testOutputParserDoctorConfig() throws {
         let parser = OutputParser()
         
+        // Real `brew doctor --json` shape.
         let doctorJson = """
-        [
+        {"tier": 1, "findings": [
             {
-                "warning": "You have unlinked kegs in your Cellar.\\nLeaving kegs unlinked can lead to build-trouble and cause formulae that depend on those kegs to fail to run properly once built.\\n\\n  node"
+                "text": "You have unlinked kegs in your Cellar.\\nLeaving kegs unlinked can lead to build-trouble and cause formulae that depend on those kegs to fail to run properly once built.\\n\\n  node",
+                "tier": 1, "affects": ["node"], "links": [],
+                "remediation": {"commands": ["brew link node"], "text": "Run `brew link` on these:\\n  node\\n"}
             }
-        ]
+        ]}
         """
         let doctorJsonIssues = parser.parseDoctor(doctorJson)
         XCTAssertEqual(doctorJsonIssues.count, 1)
@@ -338,5 +341,41 @@ final class BrewBarKitTests: XCTestCase {
         """
         let status2 = viewModel.parseGcloudStatus(output: gcloudNotLoggedIn, command: "gcloud auth list")
         XCTAssertEqual(status2.state, .notLoggedIn)
+    }
+}
+
+final class ReviewFixTests: XCTestCase {
+    func testPlusIsPreservedInFormulaNames() {
+        let builder = BrewCommandBuilder(brewPath: "/opt/homebrew/bin/brew")
+        XCTAssertEqual(builder.install("gtk+3").buildArguments(), ["install", "gtk+3"])
+        XCTAssertEqual(builder.install("afl++").buildArguments(), ["install", "afl++"])
+    }
+
+    func testDoctorJSONObjectShape() {
+        let json = """
+        {"tier":1,"findings":[{"text":"Some kegs are broken.\\nDetails here.\\n","tier":1,"affects":["foo"],"links":[],
+          "remediation":{"commands":["brew reinstall --cask --force foo"],"text":"To fix this, run:\\n  brew reinstall foo\\n"}}]}
+        """
+        let issues = OutputParser().parseDoctor(json)
+        XCTAssertEqual(issues.count, 1)
+        XCTAssertEqual(issues[0].summary, "Some kegs are broken.")
+        XCTAssertEqual(issues[0].fixCommand, ["reinstall", "--cask", "--force", "foo"])
+        XCTAssertTrue(issues[0].details.contains("Details here."))
+    }
+
+    func testDoctorFlagIsEmitted() {
+        XCTAssertEqual(BrewCommandBuilder(brewPath: "/opt/homebrew").doctor(json: true).buildArguments(), ["doctor", "--json"])
+    }
+
+    func testStripOverstrike() {
+        XCTAssertEqual(ManPageText.stripOverstrike("N\u{8}NA\u{8}AM\u{8}ME\u{8}E"), "NAME")
+        XCTAssertEqual(ManPageText.stripOverstrike("_\u{8}f_\u{8}i_\u{8}l_\u{8}e"), "file")
+    }
+
+    func testSafePathComponent() {
+        XCTAssertTrue(BrewBarPaths.isSafeComponent("gtk+3"))
+        XCTAssertFalse(BrewBarPaths.isSafeComponent(".."))
+        XCTAssertFalse(BrewBarPaths.isSafeComponent("a/b"))
+        XCTAssertFalse(BrewBarPaths.isSafeComponent(".hidden"))
     }
 }

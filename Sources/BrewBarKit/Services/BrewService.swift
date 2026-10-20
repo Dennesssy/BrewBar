@@ -202,30 +202,6 @@ public final class BrewService: ObservableObject {
         }
     }
 
-    // placeholder to let diff work smoothly
-    @discardableResult
-    private func placeholderAutoremove(dryRun: Bool) async throws -> String {
-        let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).autoremove(dryRun: dryRun)
-        
-        do {
-            let output = try await processManager.execute(
-                executablePath: builder.executablePath,
-                arguments: builder.buildArguments(),
-                timeout: 120
-            )
-            self.lastError = nil
-            if !dryRun {
-                try await refreshInstalledPackages()
-            }
-            return output
-        } catch {
-            let handled = errorHandler.handle(error)
-            self.lastError = handled
-            throw handled
-        }
-    }
-
     public func upgradeFormula(_ name: String, type: PackageType? = nil) async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(name, type: type)
@@ -616,7 +592,7 @@ public final class BrewService: ObservableObject {
     }
 
     private func validateFormulaName(_ name: String) -> Bool {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@+"))
         return name.unicodeScalars.allSatisfy { allowed.contains($0) }
     }
 

@@ -200,21 +200,15 @@ public struct BrewCommandBuilder: Sendable {
     }
 
     public func doctor() -> BrewCommandBuilder {
-        var copy = self
-        copy.subcommand = "doctor"
-        // Try to ask for JSON to make parsing easier, fallbacks to plain text if unsupported/not provided.
-        // It's acceptable to add `--json`? Wait, I will need to check if doctor supports `--json`.
-        // The requirements say "Run brew doctor --json if supported"
-        return copy
+        doctor(json: false)
     }
 
+    /// `brew doctor --json` emits `{"tier": n, "findings": [...]}`.
     public func doctor(json: Bool) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "doctor"
         if json {
-            // macOS Homebrew `doctor` does not actually support `--json` out of the box in the stable release yet, but let's pass it. Wait, the prompt says "Run `brew doctor --json` if supported, parse into issues grouped by severity (most severe first) with a list and detail layout. If JSON output is unavailable or unparsable, fall back to parsing the plain text."
-            // We just add `--json`.
-            copy.options["json"] = "" // Actually it might just be `--json` or `--json=v2`
+            copy.options["json"] = ""
         }
         return copy
     }
@@ -257,7 +251,7 @@ public struct BrewCommandBuilder: Sendable {
     }
 
     private func escape(_ str: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@+"))
         let filtered = str.unicodeScalars.filter { allowed.contains($0) }
         return String(filtered)
     }

@@ -162,6 +162,9 @@ public actor ProcessManager {
             let errorPipe = Pipe()
             process.standardOutput = outputPipe
             process.standardError = errorPipe
+            // A child inheriting our stdin could block on a prompt or, under
+            // brewbar-mcp, swallow the JSON-RPC request stream.
+            process.standardInput = FileHandle.nullDevice
 
             let box = ProcessOutputBox()
 

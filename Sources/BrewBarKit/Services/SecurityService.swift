@@ -121,18 +121,21 @@ public final class SecurityService: ObservableObject {
     // Host checks (read-only, argv-only commands)
     public func getHostChecks() async -> (casks: [String], taps: [String], ports: [String]) {
         let prefs = await LocalStorageManager.shared.loadPreferences()
+        let brew = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).executablePath
         
         // Casks
         var casksReport: [String] = []
-        if let caskOut = try? await processManager.execute(executablePath: prefs.homebrewPrefix + "/bin/brew", arguments: ["list", "--cask"]) {
+        if let caskOut = try? await processManager.execute(executablePath: brew, arguments: ["list", "--cask"]) {
             let casks = caskOut.components(separatedBy: .newlines).filter { !$0.isEmpty }
             for cask in casks.prefix(10) { // Limit to 10 for speed
-                if let infoOut = try? await processManager.execute(executablePath: prefs.homebrewPrefix + "/bin/brew", arguments: ["info", "--cask", cask]) {
+                if let infoOut = try? await processManager.execute(executablePath: brew, arguments: ["info", "--cask", cask]) {
                     let lines = infoOut.components(separatedBy: .newlines)
                     for line in lines {
                         if line.contains(".app") && line.contains("App") {
                             let pathParts = line.components(separatedBy: " (App)")
-                            if let appPath = pathParts.first?.trimmingCharacters(in: .whitespaces) {
+                            if let appName = pathParts.first?.trimmingCharacters(in: .whitespaces) {
+                                // `brew info --cask` prints the bundle name ("Foo.app (App)"), not its path.
+                                let appPath = appName.hasPrefix("/") ? appName : "/Applications/\(appName)"
                                 let verifyOut = (try? await processManager.execute(executablePath: "/usr/bin/codesign", arguments: ["--verify", "--verbose", appPath], allowNonZeroExit: true)) ?? "could not check"
                                 casksReport.append("\(cask): \(verifyOut.contains("valid on disk") ? "valid" : "could not check")")
                                 break
@@ -145,7 +148,7 @@ public final class SecurityService: ObservableObject {
         
         // Taps (non-official)
         var tapsReport: [String] = []
-        if let tapOut = try? await processManager.execute(executablePath: prefs.homebrewPrefix + "/bin/brew", arguments: ["tap"], extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]) {
+        if let tapOut = try? await processManager.execute(executablePath: brew, arguments: ["tap"], extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]) {
             let taps = tapOut.components(separatedBy: .newlines).filter { !$0.isEmpty }
             for tap in taps {
                 if !tap.hasPrefix("homebrew/") {

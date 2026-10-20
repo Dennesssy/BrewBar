@@ -20,7 +20,9 @@ public struct Logger: Sendable {
     public func log(_ message: String, level: LogLevel = .info, file: String = #file, line: Int = #line) {
         let filename = (file as NSString).lastPathComponent
         let timestamp = ISO8601DateFormatter().string(from: Date())
-        print("[\(timestamp)] [\(level.rawValue)] [\(subsystem)] [\(filename):\(line)] \(message)")
+        // stderr, not stdout: the brewbar-mcp stdio server owns stdout for
+        // JSON-RPC framing, and any stray log line there corrupts the stream.
+        FileHandle.standardError.write(Data("[\(timestamp)] [\(level.rawValue)] [\(subsystem)] [\(filename):\(line)] \(message)\n".utf8))
     }
 
     public func debug(_ message: String, file: String = #file, line: Int = #line) {
