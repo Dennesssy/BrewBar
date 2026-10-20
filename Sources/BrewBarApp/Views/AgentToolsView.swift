@@ -4,14 +4,73 @@ import SwiftUI
 import AppKit
 import BrewBarKit
 
+/// Owns skill generation so a long run survives tab switches and stays cancellable.
+@MainActor
+final class SkillGenerationModel: ObservableObject {
+    static let shared = SkillGenerationModel()
+
+    @Published private(set) var isRunning = false
+    @Published private(set) var done = 0
+    @Published private(set) var total = 0
+    @Published private(set) var failures = 0
+    @Published private(set) var statusMessage: String?
+
+    private var task: Task<Void, Never>?
+
+    /// No-op while a run is already in progress, so runs never overlap.
+    func start() {
+        guard !isRunning else { return }
+        isRunning = true
+        done = 0
+        total = 0
+        failures = 0
+        statusMessage = nil
+        task = Task {
+            defer {
+                isRunning = false
+                task = nil
+            }
+            let prefs = await LocalStorageManager.shared.loadPreferences()
+            let service = ToolDiscoveryService(brewPath: prefs.homebrewPrefix)
+            let writer = SkillGenerator()
+            do {
+                let tools = try await service.listTools()
+                total = tools.count
+                for tool in tools {
+                    if Task.isCancelled { break }
+                    do {
+                        let doc = try await service.documentation(for: tool.name)
+                        _ = try await writer.writeSkill(for: doc)
+                    } catch {
+                        failures += 1
+                    }
+                    done += 1
+                }
+                if Task.isCancelled {
+                    statusMessage = "Cancelled after \(done) of \(total) tools. The index was not rewritten."
+                    return
+                }
+                _ = try writer.writeIndex(tools: tools)
+                statusMessage = "Finished: \(done - failures) skills written, \(failures) failed."
+            } catch {
+                statusMessage = "Generation failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+    }
+
+    func reportError(_ message: String) {
+        statusMessage = message
+    }
+}
+
 /// Setup for terminal agents that read installed Homebrew CLIs through brewbar-mcp.
 struct AgentToolsView: View {
+    @ObservedObject private var generator = SkillGenerationModel.shared
     @State private var toolCountLabel = "loading..."
-    @State private var generationTask: Task<Void, Never>?
-    @State private var done = 0
-    @State private var total = 0
-    @State private var failures = 0
-    @State private var statusMessage: String?
     @State private var copied = false
 
     private var serverPath: String? {
@@ -26,8 +85,6 @@ struct AgentToolsView: View {
         }
         return "swift build -c release --product brewbar-mcp"
     }
-
-    private var isGenerating: Bool { generationTask != nil }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -77,27 +134,27 @@ struct AgentToolsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    if isGenerating {
-                        ProgressView(value: Double(done), total: Double(max(total, 1)))
-                        Text("\(done) of \(total) processed, \(failures) failed")
+                    if generator.isRunning {
+                        ProgressView(value: Double(generator.done), total: Double(max(generator.total, 1)))
+                        Text("\(generator.done) of \(generator.total) processed, \(generator.failures) failed")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
-                    if let statusMessage {
-                        Text(statusMessage)
+                    if let status = generator.statusMessage {
+                        Text(status)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
 
                     HStack {
-                        if isGenerating {
+                        if generator.isRunning {
                             Button("Cancel", role: .cancel) {
-                                generationTask?.cancel()
+                                generator.cancel()
                             }
                         } else {
                             Button("Generate Skills") {
-                                startGeneration()
+                                generator.start()
                             }
                             .buttonStyle(.glassProminent)
                         }
@@ -130,49 +187,13 @@ struct AgentToolsView: View {
         }
     }
 
-    private func startGeneration() {
-        guard generationTask == nil else { return }
-        done = 0
-        total = 0
-        failures = 0
-        statusMessage = nil
-        generationTask = Task {
-            defer { generationTask = nil }
-            let prefs = await LocalStorageManager.shared.loadPreferences()
-            let service = ToolDiscoveryService(brewPath: prefs.homebrewPrefix)
-            let writer = SkillGenerator()
-            do {
-                let tools = try await service.listTools()
-                total = tools.count
-                for tool in tools {
-                    if Task.isCancelled { break }
-                    do {
-                        let doc = try await service.documentation(for: tool.name)
-                        _ = try await writer.writeSkill(for: doc)
-                    } catch {
-                        failures += 1
-                    }
-                    done += 1
-                }
-                if Task.isCancelled {
-                    statusMessage = "Cancelled after \(done) of \(total) tools. The index was not rewritten."
-                    return
-                }
-                _ = try writer.writeIndex(tools: tools)
-                statusMessage = "Finished: \(done - failures) skills written, \(failures) failed."
-            } catch {
-                statusMessage = "Generation failed: \(error.localizedDescription)"
-            }
-        }
-    }
-
     private func openSkillsFolder() {
         let folder = BrewBarPaths.skills
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             NSWorkspace.shared.open(folder)
         } catch {
-            statusMessage = "Could not create skills folder: \(error.localizedDescription)"
+            generator.reportError("Could not create skills folder: \(error.localizedDescription)")
         }
     }
 }
