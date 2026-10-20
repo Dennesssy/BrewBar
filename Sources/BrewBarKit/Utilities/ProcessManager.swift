@@ -69,8 +69,9 @@ private final class ProcessOutputBox: @unchecked Sendable {
 }
 
 public actor ProcessManager {
-    public private(set) var isRunning: Bool = false
-    private var currentProcess: Process?
+    /// Every process this manager has launched and not yet seen terminate.
+    /// execute() is reentrant, so several can be in flight at once.
+    private var inFlight: [ObjectIdentifier: Process] = [:]
 
     /// Grace period after SIGTERM before escalating to SIGKILL, so a process
     /// that ignores SIGTERM can't hang execute(...) forever.
@@ -78,14 +79,17 @@ public actor ProcessManager {
 
     public init() {}
 
+    public var isRunning: Bool { !inFlight.isEmpty }
+
     public func cancel() {
-        guard let process = currentProcess, process.isRunning else { return }
-        // Try SIGTERM first
-        process.terminate()
-        // Schedule SIGKILL if it doesn't die
-        DispatchQueue.global().asyncAfter(deadline: .now() + Self.killEscalationDelay) {
-            if process.isRunning {
-                kill(-process.processIdentifier, SIGKILL)
+        for process in inFlight.values where process.isRunning {
+            // Try SIGTERM first
+            process.terminate()
+            // Schedule SIGKILL if it doesn't die
+            DispatchQueue.global().asyncAfter(deadline: .now() + Self.killEscalationDelay) {
+                if process.isRunning {
+                    kill(-process.processIdentifier, SIGKILL)
+                }
             }
         }
     }
@@ -130,13 +134,13 @@ public actor ProcessManager {
         extraEnvironment: [String: String]? = nil,
         outputHandler: OutputHandler? = nil
     ) async throws -> String {
-        isRunning = true
-        defer { isRunning = false }
-
         let command = ([executablePath] + arguments).joined(separator: " ")
 
         return try await withCheckedThrowingContinuation { continuation in
+            // This body runs synchronously on the actor, so registering here
+            // is ordered before any cancel() and before the process can exit.
             let process = Process()
+            let key = ObjectIdentifier(process)
             process.executableURL = URL(fileURLWithPath: executablePath)
             process.arguments = arguments
             var env = ProcessInfo.processInfo.environment
@@ -236,24 +240,30 @@ public actor ProcessManager {
 
                 let (finalOutput, finalError) = box.snapshot()
 
+                let outcome: Result<String, any Error>
                 if box.hasTimedOut() {
-                    continuation.resume(throwing: BrewBarError.commandTimeout(command))
+                    outcome = .failure(BrewBarError.commandTimeout(command))
                 } else if proc.terminationStatus != 0 && !allowNonZeroExit {
                     let errMessage = finalError.isEmpty ? finalOutput : finalError
-                    continuation.resume(throwing: BrewBarError.commandFailed(
+                    outcome = .failure(BrewBarError.commandFailed(
                         command: command,
                         error: errMessage.trimmingCharacters(in: .whitespacesAndNewlines)
                     ))
                 } else {
                     let returnOutput = finalOutput.trimmingCharacters(in: .whitespacesAndNewlines)
                     let returnError = finalError.trimmingCharacters(in: .whitespacesAndNewlines)
-                    continuation.resume(returning: returnOutput.isEmpty ? returnError : returnOutput)
+                    outcome = .success(returnOutput.isEmpty ? returnError : returnOutput)
+                }
+
+                // Unregister before resuming so isRunning is already false
+                // by the time the caller's execute() returns.
+                Task {
+                    await self.unregister(key)
+                    continuation.resume(with: outcome)
                 }
             }
 
-            Task {
-                await self.setCurrentProcess(process)
-            }
+            inFlight[key] = process
 
             do {
                 try process.run()
@@ -266,6 +276,7 @@ public actor ProcessManager {
                 // case the timeout escalation is meant to catch.
                 setpgid(process.processIdentifier, process.processIdentifier)
             } catch {
+                inFlight[key] = nil
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil
                 box.cancelTimeoutWork()
@@ -274,7 +285,7 @@ public actor ProcessManager {
         }
     }
 
-    private func setCurrentProcess(_ process: Process) {
-        self.currentProcess = process
+    private func unregister(_ key: ObjectIdentifier) {
+        inFlight[key] = nil
     }
 }
