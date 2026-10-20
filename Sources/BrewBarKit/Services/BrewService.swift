@@ -23,14 +23,18 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var newFormulaNames: [String] = []
     @Published public private(set) var newCaskNames: [String] = []
 
+    /// Background and read-only queries share this manager.
     private let processManager = ProcessManager()
+    /// Only user-initiated tasks (the ones that set `activeTaskCommand`) run here,
+    /// so Cancel never hits a refresh or check that happens to start mid-task.
+    private let taskProcessManager = ProcessManager()
     private let outputParser = OutputParser()
     private let errorHandler = ErrorHandler()
 
     public init() {}
 
     public func cancelActiveTask() async {
-        await processManager.cancel()
+        await taskProcessManager.cancel()
     }
 
     public func installFormula(_ name: String, type: PackageType? = nil) async throws {
@@ -46,7 +50,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            let output = try await processManager.execute(
+            let output = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -131,7 +135,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            _ = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -160,7 +164,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            _ = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -210,7 +214,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            let output = try await processManager.execute(
+            let output = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -242,7 +246,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            _ = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -292,7 +296,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            let output = try await processManager.execute(
+            let output = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
