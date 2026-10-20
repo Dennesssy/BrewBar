@@ -2,6 +2,7 @@
 
 import Foundation
 import AppKit
+import Darwin
 
 @MainActor
 public final class SecurityService: ObservableObject {
@@ -157,20 +158,76 @@ public final class SecurityService: ObservableObject {
             }
         }
         
-        // Ports
+        // Ports: TCP listeners whose executable lives under the Homebrew prefix.
+        // lsof's COMMAND column is truncated, so match on the resolved executable path instead.
         var portsReport: [String] = []
-        if let lsofOut = try? await processManager.execute(executablePath: "/usr/sbin/lsof", arguments: ["-PiTCP", "-sTCP:LISTEN"], allowNonZeroExit: true) {
-            let lines = lsofOut.components(separatedBy: .newlines)
-            for line in lines {
-                if line.contains("homebrew") { // crude filter
-                    let parts = line.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-                    if parts.count > 8 {
-                        portsReport.append("\(parts[0]) on \(parts[8])")
-                    }
+        let homebrewPrefix = URL(fileURLWithPath: brew).deletingLastPathComponent().deletingLastPathComponent().path
+        if let lsofOut = try? await processManager.execute(executablePath: "/usr/sbin/lsof", arguments: ["-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn"], allowNonZeroExit: true) {
+            var pathByPid: [Int32: String] = [:]
+            var reported = Set<String>()
+            for listener in Self.parseListeners(lsofOut) {
+                if pathByPid[listener.pid] == nil {
+                    pathByPid[listener.pid] = Self.executablePath(forPid: listener.pid) ?? ""
+                }
+                guard let path = pathByPid[listener.pid], !path.isEmpty,
+                      Self.isHomebrewExecutable(path, prefix: homebrewPrefix) else { continue }
+                let entry = "\(listener.command) (pid \(listener.pid)) on \(listener.address)"
+                if reported.insert(entry).inserted {
+                    portsReport.append(entry)
                 }
             }
         }
-        
+
         return (casksReport, tapsReport, portsReport)
+    }
+
+    /// One TCP listening socket parsed from `lsof -Fpcn` output.
+    struct ListeningSocket: Equatable, Sendable {
+        let pid: Int32
+        let command: String
+        let address: String
+    }
+
+    /// Parses `lsof -nP -iTCP -sTCP:LISTEN -Fpcn` field output. Each `p` line starts a
+    /// process record, `c` names it, and every `n` line is one listening address.
+    /// Lines with unknown tags, bad pids, or addresses before any valid `p` are skipped.
+    nonisolated static func parseListeners(_ lsofFieldOutput: String) -> [ListeningSocket] {
+        var listeners: [ListeningSocket] = []
+        var pid: Int32?
+        var command = ""
+        for line in lsofFieldOutput.split(whereSeparator: \.isNewline) {
+            guard let tag = line.first else { continue }
+            let value = String(line.dropFirst())
+            switch tag {
+            case "p":
+                pid = Int32(value).flatMap { $0 > 0 ? $0 : nil }
+                command = ""
+            case "c":
+                command = value
+            case "n":
+                guard let pid, !value.isEmpty else { continue }
+                listeners.append(ListeningSocket(pid: pid, command: command, address: value))
+            default:
+                continue
+            }
+        }
+        return listeners
+    }
+
+    /// Resolves the on-disk executable of a process via `proc_pidpath`, or nil if the kernel won't say.
+    nonisolated static func executablePath(forPid pid: Int32) -> String? {
+        let maxPathInfoSize = 4096 // PROC_PIDPATHINFO_MAXSIZE (4 * MAXPATHLEN)
+        var buffer = [CChar](repeating: 0, count: maxPathInfoSize)
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        guard length > 0 else { return nil }
+        return String(cString: buffer)
+    }
+
+    /// True when `path` is inside the Homebrew prefix (a path boundary is required, so
+    /// `/opt/homebrewevil/...` does not match `/opt/homebrew`) or in a Cellar.
+    nonisolated static func isHomebrewExecutable(_ path: String, prefix: String) -> Bool {
+        let root = prefix.hasSuffix("/") ? String(prefix.dropLast()) : prefix
+        if !root.isEmpty, path.hasPrefix(root + "/") { return true }
+        return path.contains("/Cellar/")
     }
 }
