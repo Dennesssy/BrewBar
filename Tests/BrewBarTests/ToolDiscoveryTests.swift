@@ -184,6 +184,52 @@ final class ToolDiscoveryTests: XCTestCase {
         XCTAssertTrue(ToolDiscoveryService.rank(tools, query: "jq", limit: 0).isEmpty)
     }
 
+    func testCapabilityQueryRanksPrimaryToolAboveMidWordMatches() {
+        let tools = [
+            InstalledTool(name: "lzegrep", formula: "xz", version: "5.8", path: "/p/lzegrep", summary: "General-purpose data compression"),
+            InstalledTool(name: "xzgrep", formula: "xz", version: "5.8", path: "/p/xzgrep", summary: "General-purpose data compression"),
+            InstalledTool(name: "semgrep", formula: "semgrep", version: "1", path: "/p/semgrep", summary: "Detect and prevent bugs"),
+            InstalledTool(name: "rg", formula: "ripgrep", version: "15", path: "/p/rg", summary: "Search tool like grep and The Silver Searcher"),
+            InstalledTool(name: "ggrep", formula: "grep", version: "3", path: "/p/ggrep", summary: "GNU grep, egrep and fgrep"),
+        ]
+
+        let top3 = ToolDiscoveryService.rank(tools, query: "grep", limit: 3).map(\.name)
+        XCTAssertTrue(top3.contains("rg"))
+        XCTAssertTrue(top3.contains("ggrep"))
+
+        let ranked = ToolDiscoveryService.rank(tools, query: "grep", limit: 10).map(\.name)
+        guard let rgIndex = ranked.firstIndex(of: "rg"), let lzegrepIndex = ranked.firstIndex(of: "lzegrep") else {
+            return XCTFail("rg or lzegrep missing from \(ranked)")
+        }
+        XCTAssertLessThan(rgIndex, lzegrepIndex)
+    }
+
+    func testJsonQueryKeepsJqInTopThree() {
+        let tools = [
+            InstalledTool(name: "gpgme-json", formula: "gpgme", version: "1", path: "/p/gpgme-json", summary: "Library access to GnuPG"),
+            InstalledTool(name: "jq", formula: "jq", version: "1", path: "/p/jq", summary: "Lightweight and flexible command-line JSON processor"),
+            InstalledTool(name: "jless", formula: "jless", version: "1", path: "/p/jless", summary: "Command-line JSON viewer"),
+            InstalledTool(name: "gojq", formula: "gojq", version: "1", path: "/p/gojq", summary: "Go implementation of jq"),
+            InstalledTool(name: "curl", formula: "curl", version: "1", path: "/p/curl", summary: "Get a file from an HTTP server"),
+        ]
+
+        let top3 = ToolDiscoveryService.rank(tools, query: "json", limit: 3).map(\.name)
+        XCTAssertTrue(top3.contains("jq"))
+        XCTAssertFalse(top3.contains("curl"))
+    }
+
+    func testExactNameRanksFirst() {
+        let tools = [
+            InstalledTool(name: "curl", formula: "curl", version: "1", path: "/p/curl", summary: "Get a file from an HTTP server"),
+            InstalledTool(name: "https", formula: "httpie", version: "1", path: "/p/https", summary: "cURL replacement (HTTP client)"),
+            InstalledTool(name: "httpie", formula: "httpie", version: "1", path: "/p/httpie", summary: "cURL replacement (HTTP client)"),
+            InstalledTool(name: "http", formula: "httpie", version: "1", path: "/p/http", summary: "cURL replacement (HTTP client)"),
+            InstalledTool(name: "httpserv", formula: "nss", version: "1", path: "/p/httpserv", summary: nil),
+        ]
+
+        XCTAssertEqual(ToolDiscoveryService.rank(tools, query: "http", limit: 5).first?.name, "http")
+    }
+
     // MARK: - Validation (no brew or man involved)
 
     func testDocumentationRejectsUnsafeName() async throws {
@@ -221,5 +267,20 @@ final class ToolDiscoveryTests: XCTestCase {
         print("LIVE \(tool) source=\(doc.source.rawValue) options=\(doc.tree.options.count) subcommands=\(doc.tree.subcommands.count) summary=\(doc.tree.summary ?? "nil") rawChars=\(doc.rawText.count)")
         XCTAssertNotEqual(doc.source, .none)
         XCTAssertFalse(doc.tree.options.isEmpty)
+    }
+
+    func testLiveRankingTop5() async throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["BREWBAR_LIVE"] == "1")
+
+        let cache = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ToolRankingLive-\(UUID().uuidString)", isDirectory: true)
+        let service = ToolDiscoveryService(cacheDirectory: cache)
+
+        let grep = try await service.searchTools("grep", limit: 5).map(\.name)
+        let json = try await service.searchTools("json", limit: 5).map(\.name)
+        print("LIVE top5 grep=\(grep) json=\(json)")
+
+        XCTAssertTrue(grep.contains("rg"))
+        XCTAssertTrue(json.contains("jq"))
     }
 }

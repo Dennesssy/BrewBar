@@ -39,28 +39,71 @@ public actor ToolDiscoveryService: ToolDiscoveryProviding {
         return Self.rank(tools, query: query, limit: limit)
     }
 
-    /// Exact name > name prefix > name contains > formula contains > summary contains.
-    /// Ties break alphabetically. An empty query returns the first `limit` tools in catalog order.
+    /// Additive, deterministic score. Each field takes its best tier only:
+    ///   name:    exact 100 · prefix 60 · word start 40 · mid-word 20
+    ///   formula: exact 50  · prefix 30 · word start 20 · mid-word 15
+    ///   summary: whole word 30 · mid-word 5
+    ///   primary binary (name == formula) +5, only when something else matched.
+    /// Sort: score desc, then shorter name, then alphabetical. An empty query returns
+    /// the first `limit` tools in catalog order.
     static func rank(_ tools: [InstalledTool], query: String, limit: Int) -> [InstalledTool] {
         guard limit > 0 else { return [] }
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !needle.isEmpty else { return Array(tools.prefix(limit)) }
 
         let scored: [(tool: InstalledTool, score: Int)] = tools.compactMap { tool in
-            let name = tool.name.lowercased()
-            if name == needle { return (tool, 5) }
-            if name.hasPrefix(needle) { return (tool, 4) }
-            if name.contains(needle) { return (tool, 3) }
-            if tool.formula.lowercased().contains(needle) { return (tool, 2) }
-            if tool.summary?.lowercased().contains(needle) == true { return (tool, 1) }
-            return nil
+            let score = matchScore(tool, needle: needle)
+            return score > 0 ? (tool, score) : nil
         }
         return scored
             .sorted { lhs, rhs in
-                lhs.score != rhs.score ? lhs.score > rhs.score : lhs.tool.name < rhs.tool.name
+                if lhs.score != rhs.score { return lhs.score > rhs.score }
+                if lhs.tool.name.count != rhs.tool.name.count { return lhs.tool.name.count < rhs.tool.name.count }
+                return lhs.tool.name < rhs.tool.name
             }
             .prefix(limit)
             .map(\.tool)
+    }
+
+    private static func matchScore(_ tool: InstalledTool, needle: String) -> Int {
+        let name = tool.name.lowercased()
+        let formula = tool.formula.lowercased()
+        var score = 0
+
+        if name == needle {
+            score += 100
+        } else if name.hasPrefix(needle) {
+            score += 60
+        } else if words(in: name).contains(where: { $0.hasPrefix(needle) }) {
+            score += 40
+        } else if name.contains(needle) {
+            score += 20
+        }
+
+        if formula == needle {
+            score += 50
+        } else if formula.hasPrefix(needle) {
+            score += 30
+        } else if words(in: formula).contains(where: { $0.hasPrefix(needle) }) {
+            score += 20
+        } else if formula.contains(needle) {
+            score += 15
+        }
+
+        if let summary = tool.summary?.lowercased() {
+            if words(in: summary).contains(where: { $0 == needle }) {
+                score += 30
+            } else if summary.contains(needle) {
+                score += 5
+            }
+        }
+
+        guard score > 0 else { return 0 }
+        return tool.name == tool.formula ? score + 5 : score
+    }
+
+    private static func words(in text: String) -> [Substring] {
+        text.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
     }
 
     public func documentation(for toolName: String) async throws -> ToolDocumentation {
