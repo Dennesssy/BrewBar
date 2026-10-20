@@ -83,8 +83,13 @@ final class SecurityPortTests: XCTestCase {
         XCTAssertFalse(SecurityService.isHomebrewExecutable("/Applications/Some.app/Contents/MacOS/homebrew-helper", prefix: prefix))
     }
 
-    func testCellarPathCountsAsHomebrew() {
-        XCTAssertTrue(SecurityService.isHomebrewExecutable("/usr/local/Cellar/nginx/1.27.0/bin/nginx", prefix: "/opt/homebrew"))
+    func testCellarUnderPrefixIsHomebrew() {
+        XCTAssertTrue(SecurityService.isHomebrewExecutable("/opt/homebrew/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/bin/python3", prefix: "/opt/homebrew"))
+    }
+
+    func testUserWritableCellarNameIsNotHomebrew() {
+        XCTAssertFalse(SecurityService.isHomebrewExecutable("/Users/x/Downloads/Cellar/evil/bin/x", prefix: "/opt/homebrew"))
+        XCTAssertFalse(SecurityService.isHomebrewExecutable("/usr/local/Cellar/nginx/1.27.0/bin/nginx", prefix: "/opt/homebrew"))
     }
 
     func testResolvesOwnExecutablePath() throws {

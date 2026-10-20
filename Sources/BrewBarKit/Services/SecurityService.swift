@@ -220,14 +220,14 @@ public final class SecurityService: ObservableObject {
         var buffer = [CChar](repeating: 0, count: maxPathInfoSize)
         let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
         guard length > 0 else { return nil }
-        return String(cString: buffer)
+        let bytes = buffer.prefix(Int(length)).map { UInt8(bitPattern: $0) }
+        return String(decoding: bytes, as: UTF8.self)
     }
 
-    /// True when `path` is inside the Homebrew prefix (a path boundary is required, so
-    /// `/opt/homebrewevil/...` does not match `/opt/homebrew`) or in a Cellar.
+    /// True when `path` is inside the Homebrew prefix. A path boundary is required, so
+    /// `/opt/homebrewevil/...` does not match `/opt/homebrew`.
     nonisolated static func isHomebrewExecutable(_ path: String, prefix: String) -> Bool {
         let root = prefix.hasSuffix("/") ? String(prefix.dropLast()) : prefix
-        if !root.isEmpty, path.hasPrefix(root + "/") { return true }
-        return path.contains("/Cellar/")
+        return !root.isEmpty && path.hasPrefix(root + "/")
     }
 }
