@@ -12,6 +12,7 @@ public struct Vulnerability: Codable, Sendable, Identifiable {
     // Derived property for sorting
     public var severityScore: Int {
         switch severity.lowercased() {
+        case "malicious": return 5
         case "critical": return 4
         case "high": return 3
         case "medium": return 2

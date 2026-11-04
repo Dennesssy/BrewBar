@@ -59,7 +59,8 @@ public final class SecurityService: ObservableObject {
                  ) {
                      for line in skippedOutput.components(separatedBy: .newlines) {
                          let trimmed = line.trimmingCharacters(in: .whitespaces)
-                         if !trimmed.isEmpty && !trimmed.contains("Warning") && !trimmed.contains("Error") {
+                         // Formula names have no spaces, unlike the status lines around them.
+                         if !trimmed.isEmpty && !trimmed.contains(" ") {
                              skipped.append(SkippedPackage(package: trimmed, reason: "Skipped (no additional reason provided by --list-skipped)"))
                          }
                      }

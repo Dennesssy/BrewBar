@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file.
 - Accounts tab: read-only CLI status view for GitHub, Google Cloud, AWS, npm, Vercel, Netlify, Wrangler, Firebase, and 1Password, plus local credential file hygiene checks.
 - Package Detail view now includes a Pin / Unpin button for installed formulas.
 - Security tab: `brew vulns --json` results grouped by severity, packages that could not be checked, per-package upgrade, optional CISA known-exploited badges and read-only checks of this Mac. Lookups send package names and versions to OSV.dev, so they are off until enabled (new `allowVulnerabilityLookups` preference, default off).
+- Security tab: global npm package scan alongside `brew vulns`, with a Scan All button. It inventories every package and nested dependency under `<brew prefix>/lib/node_modules`, queries the OSV.dev API directly, and groups findings by top-level global package, with a critical-and-high filter, fixed versions and advisory links. A known-vulnerable control package is included in every query, so a failed lookup shows an error rather than a clean result. Uses the existing "Allow vulnerability lookups" consent. Packages added with `npm link` are not scanned.
 - Unit tests for the new brew operations, doctor/config parsing and the vulnerability parser (suite is now 13 tests).
 - Live task console with the exact command, streamed output and a Cancel button.
 - Doctor screen (`brew doctor --json`, text fallback) and Configuration screen (`brew config`).
