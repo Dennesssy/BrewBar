@@ -289,7 +289,10 @@ public final class FormulaDetailViewModel: ObservableObject {
             let prefs = await LocalStorageManager.shared.loadPreferences()
             let discovery = Self.sharedToolDiscovery(brewPath: prefs.homebrewPrefix)
             let candidates = ((try? await discovery.listTools()) ?? []).filter { $0.formula == formula.name }
-            let chosen = candidates.first { $0.name == formula.name } ?? candidates.min { $0.name < $1.name }
+            // Exact-name match first, then the catalog's own ranking — an
+            // alphabetical `min` could pick a secondary binary (e.g. a
+            // `-fzf` companion) and show the wrong man page.
+            let chosen = candidates.first { $0.name == formula.name } ?? candidates.first
             if let tool = chosen,
                let doc = try? await discovery.documentation(for: tool.name),
                !doc.rawText.isEmpty {

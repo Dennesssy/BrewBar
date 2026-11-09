@@ -76,9 +76,14 @@ public final class AccountsViewModel: ObservableObject {
     }
     
     private func findExecutable(_ name: String) -> String? {
-        let paths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]
-        for path in paths {
-            let checkPath = (path as NSString).appendingPathComponent(name)
+        // Search the user's actual PATH first (CLIs live in ~/.local/bin,
+        // /usr/local/bin, nix profiles, etc.), then the usual suspects.
+        var dirs = (ProcessInfo.processInfo.environment["PATH"] ?? "")
+            .components(separatedBy: ":")
+            .filter { !$0.isEmpty }
+        dirs.append(contentsOf: ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"])
+        for dir in dirs {
+            let checkPath = (dir as NSString).appendingPathComponent(name)
             if FileManager.default.isExecutableFile(atPath: checkPath) {
                 return checkPath
             }
@@ -153,10 +158,14 @@ public final class AccountsViewModel: ObservableObject {
     }
 
     public func parseGcloudStatus(output: String, command: String) -> CLIStatus {
-        let activeLine = output.components(separatedBy: .newlines).first { $0.contains("ACTIVE") }
+        // `gcloud auth list --format=value(account,status)` emits
+        // "account,status" per line; only the ACTIVE row is signed in.
+        let activeLine = output.components(separatedBy: .newlines).first { line in
+            let parts = line.components(separatedBy: ",")
+            return parts.count >= 2 && parts[1].trimmingCharacters(in: .whitespaces) == "ACTIVE"
+        }
         if let line = activeLine {
-            let parts = line.components(separatedBy: .whitespaces)
-            let account = parts.first
+            let account = line.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces)
             return CLIStatus(name: "gcloud", state: .loggedIn, account: account, commandUsed: command)
         }
         return CLIStatus(name: "gcloud", state: .notLoggedIn, account: nil, commandUsed: command)
@@ -267,14 +276,25 @@ public final class AccountsViewModel: ObservableObject {
 
     private func checkOp() async -> CLIStatus? {
         guard let path = findExecutable("op") else { return nil }
-        let args = ["account", "list"]
-        let command = "op account list"
-        guard let output = await executeSafeCommand(executable: path, arguments: args) else {
+        // `op account list` shows configured accounts regardless of sign-in
+        // state; `op whoami` is the actual session check.
+        let command = "op whoami"
+        guard let raw = try? await processManager.execute(
+            executablePath: path,
+            arguments: ["whoami"],
+            timeout: 10,
+            allowNonZeroExit: true
+        ) else {
             return CLIStatus(name: "1Password", state: .unknown, account: nil, commandUsed: command)
         }
-        let accounts = output.components(separatedBy: .newlines).filter { $0.contains("http") || $0.contains("@") }
-        if !accounts.isEmpty {
-            return CLIStatus(name: "1Password", state: .loggedIn, account: accounts.first?.trimmingCharacters(in: .whitespaces), commandUsed: command)
+        let output = redactOutput(raw)
+        if output.contains("@") {
+            let account = output.components(separatedBy: .newlines)
+                .first { $0.contains("@") }?
+                .components(separatedBy: ":")
+                .last?
+                .trimmingCharacters(in: .whitespaces)
+            return CLIStatus(name: "1Password", state: .loggedIn, account: account, commandUsed: command)
         }
         return CLIStatus(name: "1Password", state: .notLoggedIn, account: nil, commandUsed: command)
     }
