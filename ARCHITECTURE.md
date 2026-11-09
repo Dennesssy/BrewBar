@@ -213,6 +213,7 @@ Network/
 ├── HTTPClient              (with retry logic)
 ├── GithubAPIClient         (formula repository queries)
 ├── NotaryScannerAPI        (security checks for casks)
+├── NodeVulnerabilityScanner (global npm inventory + OSV.dev batch queries)
 └── AnalyticsReporter       (anonymized telemetry)
 ```
 
@@ -418,7 +419,28 @@ Synchronization:
 - ✅ Notarized with Apple (Gatekeeper bypass)
 - ✅ Version pinning of bundled resources
 
-### 4. **Plugin Submission System** (Future)
+### 4. **Vulnerability Scanning** (Security tab, opt-in)
+
+```
+SecurityView  [Scan All]
+├── brew column ── SecurityService ──────────► `brew vulns --json` ──► OSV.dev
+└── npm column ─── NodeVulnerabilityService
+                   ├── NodePackageInventory.scan   (off the main actor; no network)
+                   │     <brew prefix>/lib/node_modules/**/package.json
+                   │     symlinks not followed, so `npm link` packages are skipped
+                   └── NodeVulnerabilityScanner.check
+                         POST /v1/querybatch  (500 per batch, follows page tokens)
+                         GET  /v1/vulns/{id}  (severity, fixed versions)
+                         sent: package names and versions only
+```
+
+- Both scans need the "Allow vulnerability lookups" preference, which is off by default.
+- Every query includes `lodash@4.17.15`, a control package with known advisories. If it
+  returns none, the scan fails, so a broken lookup can't be shown as "no vulnerabilities".
+- The npm scan is read-only: it doesn't install, upgrade or run anything.
+- Matching is by version, so a finding doesn't prove the vulnerable code can be reached.
+
+### 5. **Plugin Submission System** (Future)
 - ✅ GitHub OAuth verification of author
 - ✅ Automated security scanning (static analysis)
 - ✅ Manual review queue

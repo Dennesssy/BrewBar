@@ -105,25 +105,16 @@ private struct DoctorIssueRow: View {
     private func runFix(args: [String]) async {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let brewPath = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).executablePath
-        
-        brewService.activeTaskCommand = ([brewPath] + args).joined(separator: " ")
-        brewService.activeTaskConsoleOutput = ""
-        brewService.activeTaskMessage = "Running fix..."
-        
+
         do {
-            _ = try await ProcessManager().execute(
+            _ = try await brewService.runTask(
                 executablePath: brewPath,
                 arguments: args,
                 timeout: 120,
-                outputHandler: { out in
-                    Task { @MainActor in
-                        brewService.activeTaskConsoleOutput += out
-                    }
-                }
+                defaultMessage: "Running fix..."
             )
-            brewService.activeTaskMessage = nil
         } catch {
-            brewService.activeTaskMessage = "Fix failed: \(error.localizedDescription)"
+            brewService.report(error)
         }
     }
 }

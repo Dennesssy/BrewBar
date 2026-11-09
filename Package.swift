@@ -16,6 +16,10 @@ let package = Package(
         .executable(
             name: "BrewBar",
             targets: ["BrewBarApp"]
+        ),
+        .executable(
+            name: "brewbar-mcp",
+            targets: ["BrewBarMCP"]
         )
     ],
     targets: [
@@ -31,6 +35,14 @@ let package = Package(
             name: "BrewBarApp",
             dependencies: ["BrewBarKit"],
             path: "Sources/BrewBarApp",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
+            ]
+        ),
+        .executableTarget(
+            name: "BrewBarMCP",
+            dependencies: ["BrewBarKit"],
+            path: "Sources/BrewBarMCP",
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]

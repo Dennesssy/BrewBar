@@ -59,20 +59,41 @@ public final class HomebrewCatalogService: ObservableObject {
     private var caskByToken: [String: FormulaItem] = [:]
     private var topFormulaIds: [String] = []
     private var topCaskIds: [String] = []
+    private var popularityIndex: [String: Int] = [:]
+    private var searchIndex: [SearchEntry] = []
+    private var lastLoadedAt: Date?
+    private var loadTask: Task<Void, Never>?
 
-    private let httpClient = HTTPClient.shared
-    private let cache = CacheManager.shared
-    private let errorHandler = ErrorHandler()
+    private struct SearchEntry {
+        let item: FormulaItem
+        let name: String
+        let id: String
+        let title: String
+        let desc: String
+    }
 
-    private static let catalogTTL: TimeInterval = 60 * 60 * 24
+    nonisolated private static let catalogTTL: TimeInterval = 60 * 60 * 24
 
     public init() {}
 
     public var hasLoaded: Bool { !formulaByName.isEmpty }
 
     public func loadIfNeeded() async {
-        guard !hasLoaded else { return }
-        await refresh()
+        if hasLoaded, let lastLoadedAt, Date().timeIntervalSince(lastLoadedAt) < Self.catalogTTL {
+            return
+        }
+        if let loadTask {
+            await loadTask.value
+            return
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.refresh()
+        }
+        loadTask = task
+        await task.value
+        loadTask = nil
     }
 
     public func refresh() async {
@@ -116,8 +137,11 @@ public final class HomebrewCatalogService: ObservableObject {
             }
             formulaByName = map
             totalFormulaCount = map.count
+            lastError = nil
         } else if formulaByName.isEmpty {
             lastError = .networkError("Could not load the Homebrew formula catalog.")
+        } else {
+            lastError = nil
         }
 
         if let caskList {
@@ -145,6 +169,89 @@ public final class HomebrewCatalogService: ObservableObject {
         if let caskRank {
             topCaskIds = caskRank.items.compactMap { $0.cask }
         }
+
+        rebuildSearchIndex()
+        if hasLoaded {
+            lastLoadedAt = Date()
+        }
+    }
+
+    /// Local, ranked search across every formula and cask. Runs against the
+    /// in-memory index so results appear as the user types, without hitting
+    /// the network or depending on `brew search`.
+    public func search(_ query: String, limit: Int = 60) -> [FormulaItem] {
+        let clean = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !clean.isEmpty else { return [] }
+        let tokens = clean.split(whereSeparator: \.isWhitespace).map(String.init)
+
+        var scored: [(item: FormulaItem, score: Int)] = []
+        for entry in searchIndex {
+            guard let score = matchScore(entry, clean: clean, tokens: tokens) else { continue }
+            scored.append((entry.item, score))
+        }
+
+        scored.sort { a, b in
+            if a.score != b.score { return a.score > b.score }
+            let ra = popularityIndex[a.item.id] ?? Int.max
+            let rb = popularityIndex[b.item.id] ?? Int.max
+            if ra != rb { return ra < rb }
+            return a.item.name.localizedCaseInsensitiveCompare(b.item.name) == .orderedAscending
+        }
+
+        return scored.prefix(limit).map(\.item)
+    }
+
+    private func rebuildSearchIndex() {
+        var entries: [SearchEntry] = []
+        entries.reserveCapacity(formulaByName.count + caskByToken.count)
+        for item in formulaByName.values {
+            entries.append(makeSearchEntry(item))
+        }
+        for item in caskByToken.values {
+            entries.append(makeSearchEntry(item))
+        }
+        searchIndex = entries
+
+        var popularity: [String: Int] = [:]
+        for (index, id) in topFormulaIds.prefix(600).enumerated() {
+            popularity[id] = index
+        }
+        for (index, id) in topCaskIds.prefix(600).enumerated() {
+            popularity[id] = index
+        }
+        popularityIndex = popularity
+    }
+
+    private func makeSearchEntry(_ item: FormulaItem) -> SearchEntry {
+        SearchEntry(
+            item: item,
+            name: item.name.lowercased(),
+            id: item.id.lowercased(),
+            title: (item.fullTitle ?? "").lowercased(),
+            desc: item.description.lowercased()
+        )
+    }
+
+    private func matchScore(_ entry: SearchEntry, clean: String, tokens: [String]) -> Int? {
+        let score: Int
+        if entry.name == clean || entry.id == clean {
+            score = 1_000
+        } else if entry.name.hasPrefix(clean) || entry.id.hasPrefix(clean) {
+            score = 800
+        } else if entry.name.contains(clean) || entry.id.contains(clean) {
+            score = 650
+        } else if entry.title.contains(clean) {
+            score = 520
+        } else if tokens.allSatisfy({ entry.name.contains($0) || entry.id.contains($0) || entry.title.contains($0) }) {
+            score = 420
+        } else if tokens.allSatisfy({ entry.desc.contains($0) }) {
+            score = 220
+        } else {
+            return nil
+        }
+
+        let popularityBonus = popularityIndex[entry.item.id].map { max(0, 120 - $0 / 8) } ?? 0
+        return score + popularityBonus
     }
 
     public func formula(id: String) -> FormulaItem? {
@@ -202,20 +309,28 @@ public final class HomebrewCatalogService: ObservableObject {
             .map { $0 }
     }
 
-    private func fetchCached<T: Decodable>(key: String, url: URL) async -> T? {
-        if let cached = await cache.cachedData(forKey: key),
+    /// Decoding the ~50 MB catalog must not happen on the main actor.
+    private nonisolated func fetchCached<T: Decodable & Sendable>(key: String, url: URL) async -> T? {
+        if let cached = await CacheManager.shared.cachedData(forKey: key),
            let decoded = try? JSONDecoder().decode(T.self, from: cached) {
             return decoded
         }
         do {
-            let data = try await httpClient.fetchRawData(url)
+            let data = try await HTTPClient.shared.fetchRawData(url)
             guard let decoded = try? JSONDecoder().decode(T.self, from: data) else {
                 return nil
             }
-            await cache.cacheData(data, forKey: key, ttl: Self.catalogTTL)
+            await CacheManager.shared.cacheData(data, forKey: key, ttl: Self.catalogTTL)
             return decoded
         } catch {
             Logger.shared.error("Catalog fetch failed for \(url.absoluteString): \(error.localizedDescription)")
+            // An expired cache still beats an empty Discover page when the
+            // network is unavailable.
+            if let stale = await CacheManager.shared.staleData(forKey: key),
+               let decoded = try? JSONDecoder().decode(T.self, from: stale) {
+                Logger.shared.warning("Using stale cached catalog for \(url.absoluteString)")
+                return decoded
+            }
             return nil
         }
     }

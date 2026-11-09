@@ -5,11 +5,16 @@ import BrewBarKit
 
 public struct SecurityView: View {
     @StateObject private var securityService = SecurityService.shared
-    @StateObject private var prefs = PreferencesViewModel()
+    @StateObject private var nodeService = NodeVulnerabilityService.shared
+    @StateObject private var prefs = PreferencesViewModel.shared
     @State private var hostCasks: [String] = []
     @State private var hostTaps: [String] = []
     @State private var hostPorts: [String] = []
     @State private var didLoadHostChecks = false
+    @State private var contentWidth: CGFloat = 0
+
+    /// Below this width the two scan columns stack.
+    private let sideBySideWidth: CGFloat = 760
 
     public init() {}
 
@@ -19,18 +24,30 @@ public struct SecurityView: View {
                 if !prefs.preferences.allowVulnerabilityLookups {
                     privacyNotice
                 } else {
-                    scanSection
+                    scanHeader
+                    if contentWidth >= sideBySideWidth {
+                        HStack(alignment: .top, spacing: 24) {
+                            brewColumn.frame(maxWidth: .infinity, alignment: .topLeading)
+                            nodeColumn.frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 24) {
+                            brewColumn
+                            nodeColumn
+                        }
+                    }
                 }
                 
                 hostChecksSection
             }
             .padding()
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
         }
         .navigationTitle("Security")
         .task {
-            if prefs.preferences.allowVulnerabilityLookups && securityService.lastScanResult == nil {
-                await securityService.scanVulnerabilities()
-            }
+            // Ask storage directly: the view model may still be loading when this runs.
+            async let scans: Void = scanIfNeeded()
             if !didLoadHostChecks {
                 let checks = await securityService.getHostChecks()
                 hostCasks = checks.casks
@@ -38,6 +55,7 @@ public struct SecurityView: View {
                 hostPorts = checks.ports
                 didLoadHostChecks = true
             }
+            _ = await scans
         }
     }
 
@@ -48,13 +66,13 @@ public struct SecurityView: View {
                 .foregroundColor(.accentColor)
             Text("Vulnerability Scanning")
                 .font(.title2).bold()
-            Text("BrewBar can run `brew vulns` to check your installed packages against known vulnerabilities from OSV.dev. This sends your package names and versions to OSV.dev.")
+            Text("BrewBar can run `brew vulns` and check your global npm packages against known vulnerabilities from OSV.dev. This sends your package names and versions to OSV.dev.")
             
             Toggle("Allow vulnerability lookups", isOn: $prefs.preferences.allowVulnerabilityLookups)
                 .onChange(of: prefs.preferences.allowVulnerabilityLookups) { _, newValue in
                     prefs.save()
                     if newValue {
-                        Task { await securityService.scanVulnerabilities() }
+                        Task { await scanAll() }
                     }
                 }
         }
@@ -62,10 +80,47 @@ public struct SecurityView: View {
         .glassEffect(.regular, in: .rect(cornerRadius: 12))
     }
 
+    private var scanHeader: some View {
+        HStack {
+            Text("Vulnerabilities")
+                .font(.largeTitle).bold()
+            Spacer()
+            Button("Scan All") {
+                Task { await scanAll() }
+            }
+            .buttonStyle(.glassProminent)
+            .disabled(securityService.isLoading || nodeService.isLoading)
+        }
+    }
+
+    private var nodeColumn: some View {
+        NodeVulnerabilitySection(service: nodeService)
+    }
+
+    private func scanIfNeeded() async {
+        let saved = await LocalStorageManager.shared.loadPreferences()
+        guard saved.allowVulnerabilityLookups,
+              securityService.lastScanResult == nil, nodeService.lastResult == nil else { return }
+        await scanAll()
+    }
+
+    /// Runs `brew vulns` and the global npm scan at the same time.
+    private func scanAll() async {
+        async let brew: Void = securityService.scanVulnerabilities()
+        async let node: Void = nodeService.scan()
+        _ = await (brew, node)
+    }
+
+    private var brewColumn: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            scanSection
+        }
+    }
+
     @ViewBuilder
     private var scanSection: some View {
         HStack {
-            Text("Vulnerabilities")
+            Text("Homebrew Formulae")
                 .font(.title2).bold()
             Spacer()
             Button("Rescan") {
@@ -94,21 +149,29 @@ public struct SecurityView: View {
                         vulnerablePackageView(pkg)
                     }
                     if !result.skippedPackages.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Not checked")
-                                .font(.headline)
-                            ForEach(result.skippedPackages) { skipped in
-                                HStack {
-                                    Text(skipped.package).bold()
-                                    Text(skipped.reason).foregroundColor(.secondary)
+                        DisclosureGroup("Not checked (\(result.skippedPackages.count))") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(result.skippedPackages) { skipped in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(skipped.package).bold()
+                                        Text(skipped.reason)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
                         }
+                        .font(.headline)
                         .padding()
                         .glassEffect(.regular, in: .rect(cornerRadius: 8))
                     }
                 }
             }
+        } else {
+            Text("Not scanned yet.")
+                .foregroundColor(.secondary)
         }
     }
     
@@ -141,7 +204,7 @@ public struct SecurityView: View {
             ForEach(pkg.vulnerabilities) { vuln in
                 HStack(alignment: .top) {
                     Circle()
-                        .fill(severityColor(vuln.severity))
+                        .fill(vulnerabilitySeverityColor(vuln.severity))
                         .frame(width: 8, height: 8)
                         .padding(.top, 4)
                     VStack(alignment: .leading) {
@@ -157,16 +220,6 @@ public struct SecurityView: View {
         }
         .padding()
         .glassEffect(.regular, in: .rect(cornerRadius: 8))
-    }
-    
-    private func severityColor(_ severity: String) -> Color {
-        switch severity.lowercased() {
-        case "critical": return .red
-        case "high": return .orange
-        case "medium": return .yellow
-        case "low": return .blue
-        default: return .gray
-        }
     }
     
     @ViewBuilder

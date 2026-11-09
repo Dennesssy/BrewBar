@@ -29,3 +29,8 @@ patch_*.py
 
 # aider local state
 .aider*
+.build-agent*/
+.agents/
+
+# Generated icon/artwork scratch
+vibe_images/

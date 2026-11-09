@@ -12,7 +12,10 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var isUpdatingHomebrew: Bool = false
     @Published public private(set) var isCleaningUp: Bool = false
     @Published public private(set) var isRunningDoctor: Bool = false
-    
+    /// Errors from actions the user explicitly triggered. `lastError` also
+    /// records background refresh failures, which shouldn't pop an alert.
+    @Published public var presentedError: BrewBarError?
+
     @Published public var activeTaskMessage: String?
     @Published public var activeTaskProgress: Double?
     @Published public var activeTaskCommand: String?
@@ -23,14 +26,67 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var newFormulaNames: [String] = []
     @Published public private(set) var newCaskNames: [String] = []
 
+    /// Background and read-only queries share this manager.
     private let processManager = ProcessManager()
+    /// Only user-initiated tasks (the ones that set `activeTaskCommand`) run here,
+    /// so Cancel never hits a refresh or check that happens to start mid-task.
+    private let taskProcessManager = ProcessManager()
     private let outputParser = OutputParser()
     private let errorHandler = ErrorHandler()
+
+    private var installedRefreshTask: Task<Void, Error>?
+    private var updatesCheckTask: Task<Void, Error>?
+    private var installedSizeCache: (timestamp: Date, sizes: [String: UInt64])?
+    private static let installedSizeCacheLifetime: TimeInterval = 600
 
     public init() {}
 
     public func cancelActiveTask() async {
-        await processManager.cancel()
+        await taskProcessManager.cancel()
+    }
+
+    /// Runs a user-initiated brew command through the cancellable task
+    /// manager with live console output — the same path install/upgrade use,
+    /// so the TaskConsole's Cancel button actually reaches the process.
+    /// Callers that need a custom message pass `defaultMessage`; "==>" lines
+    /// in brew's output override it as the task progresses.
+    public func runTask(
+        executablePath: String,
+        arguments: [String],
+        timeout: TimeInterval = 300,
+        allowNonZeroExit: Bool = false,
+        extraEnvironment: [String: String]? = nil,
+        defaultMessage: String
+    ) async throws -> String {
+        activeTaskCommand = ([executablePath] + arguments).joined(separator: " ")
+        activeTaskConsoleOutput = ""
+        activeTaskMessage = defaultMessage
+        defer { Task { @MainActor in resetProgress() } }
+        return try await taskProcessManager.execute(
+            executablePath: executablePath,
+            arguments: arguments,
+            timeout: timeout,
+            allowNonZeroExit: allowNonZeroExit,
+            extraEnvironment: extraEnvironment,
+            outputHandler: { [weak self] out in
+                Task { @MainActor in
+                    self?.activeTaskConsoleOutput += out
+                    self?.parseProgressOutput(out, defaultMessage: defaultMessage)
+                }
+            }
+        )
+    }
+
+    public func report(_ error: Error) {
+        presentedError = errorHandler.handle(error)
+    }
+
+    public func handledError(for error: Error) -> BrewBarError {
+        errorHandler.handle(error)
+    }
+
+    private func invalidateInstalledSizeCache() {
+        installedSizeCache = nil
     }
 
     public func installFormula(_ name: String, type: PackageType? = nil) async throws {
@@ -46,7 +102,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            let output = try await processManager.execute(
+            let output = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -57,6 +113,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "install", details: output) }
         } catch {
@@ -75,13 +132,15 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).autoremove(dryRun: dryRun)
         
         do {
-            let output = try await processManager.execute(
+            let output = try await runTask(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 120
+                timeout: 120,
+                defaultMessage: dryRun ? "Checking for orphaned packages…" : "Autoremoving packages…"
             )
             self.lastError = nil
             if !dryRun {
+                invalidateInstalledSizeCache()
                 try await refreshInstalledPackages()
             }
             return output
@@ -131,7 +190,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            _ = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -160,7 +219,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            _ = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -181,44 +240,17 @@ public final class BrewService: ObservableObject {
 
     public func listTaps() async throws -> [String] {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).tap("")
-        // Without args, tap lists all installed taps
-        var args = builder.buildArguments()
-        if args.last == "" { args.removeLast() }
-        
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).tapList()
+
         do {
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
-                arguments: args,
+                arguments: builder.buildArguments(),
                 timeout: 30,
                 extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
             self.lastError = nil
             return output.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        } catch {
-            let handled = errorHandler.handle(error)
-            self.lastError = handled
-            throw handled
-        }
-    }
-
-    // placeholder to let diff work smoothly
-    @discardableResult
-    private func placeholderAutoremove(dryRun: Bool) async throws -> String {
-        let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).autoremove(dryRun: dryRun)
-        
-        do {
-            let output = try await processManager.execute(
-                executablePath: builder.executablePath,
-                arguments: builder.buildArguments(),
-                timeout: 120
-            )
-            self.lastError = nil
-            if !dryRun {
-                try await refreshInstalledPackages()
-            }
-            return output
         } catch {
             let handled = errorHandler.handle(error)
             self.lastError = handled
@@ -234,7 +266,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            let output = try await processManager.execute(
+            let output = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -245,6 +277,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             try await checkForUpdates()
             await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "upgrade", details: output) }
@@ -266,7 +299,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            _ = try await processManager.execute(
+            _ = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -277,6 +310,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             try await checkForUpdates()
             await MainActor.run { HistoryStore.shared.log(packageName: "All", packageType: "multiple", action: "upgradeAll") }
@@ -316,7 +350,7 @@ public final class BrewService: ObservableObject {
         activeTaskConsoleOutput = ""
         do {
             defer { Task { @MainActor in resetProgress() } }
-            let output = try await processManager.execute(
+            let output = try await taskProcessManager.execute(
                 executablePath: builder.executablePath,
                 arguments: commandArgs,
                 outputHandler: { [weak self] out in
@@ -327,6 +361,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             try await checkForUpdates()
             await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "uninstall", details: output) }
@@ -341,6 +376,23 @@ public final class BrewService: ObservableObject {
     }
 
     public func refreshInstalledPackages() async throws {
+        // Every tab's `.task` asks for this on first appearance; sharing the
+        // in-flight work avoids duplicate `brew list` + `du` sweeps.
+        if let existing = installedRefreshTask {
+            try await existing.value
+            return
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try await self.performRefreshInstalledPackages()
+        }
+        installedRefreshTask = task
+        defer { installedRefreshTask = nil }
+        try await task.value
+    }
+
+    private func performRefreshInstalledPackages() async throws {
         isLoading = true
         defer { isLoading = false }
 
@@ -351,10 +403,18 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"])
             var packages = try outputParser.parseInstalledPackages(output)
 
-            let sizes = await computeInstalledSizes(brewPath: prefs.homebrewPrefix)
+            let sizes: [String: UInt64]
+            if let cache = installedSizeCache,
+               Date().timeIntervalSince(cache.timestamp) < Self.installedSizeCacheLifetime {
+                sizes = cache.sizes
+            } else {
+                sizes = await computeInstalledSizes(brewPath: prefs.homebrewPrefix)
+                installedSizeCache = (Date(), sizes)
+            }
+
             if !sizes.isEmpty {
                 packages = packages.map { item in
-                    guard let bytes = sizes[item.id] else { return item }
+                    guard let bytes = sizes["\(item.type.rawValue):\(item.id)"] else { return item }
                     return FormulaItem(
                         id: item.id,
                         name: item.name,
@@ -403,7 +463,9 @@ public final class BrewService: ObservableObject {
         // call site.
         let resolvedBrewPath = BrewCommandBuilder(brewPath: brewPath).executablePath
 
-        for flag in ["--cellar", "--caskroom"] {
+        // Prefix keys by package kind: a formula and a cask can share a name
+        // (e.g. `cmake`), and an unprefixed basename would collide.
+        for (flag, prefix) in [("--cellar", "formula:"), ("--caskroom", "cask:")] {
             guard let dirPath = try? await processManager.execute(executablePath: resolvedBrewPath, arguments: [flag]) else {
                 continue
             }
@@ -413,15 +475,22 @@ public final class BrewService: ObservableObject {
             }
 
             let fullPaths = entries.map { "\(trimmedPath)/\($0)" }
-            guard let duOutput = try? await processManager.execute(executablePath: "/usr/bin/du", arguments: ["-sk"] + fullPaths) else {
-                continue
-            }
+            // Chunk the argument list: a few hundred Cellar entries can exceed
+            // ARG_MAX in a single `du` invocation, which would fail silently
+            // and drop every size.
+            let chunkSize = 200
+            for start in stride(from: 0, to: fullPaths.count, by: chunkSize) {
+                let chunk = Array(fullPaths[start..<min(start + chunkSize, fullPaths.count)])
+                guard let duOutput = try? await processManager.execute(executablePath: "/usr/bin/du", arguments: ["-sk"] + chunk) else {
+                    continue
+                }
 
-            for line in duOutput.split(separator: "\n") {
-                let parts = line.split(separator: "\t")
-                guard parts.count == 2, let kilobytes = UInt64(parts[0]) else { continue }
-                let name = String(parts[1].split(separator: "/").last ?? "")
-                sizes[name] = kilobytes * 1024
+                for line in duOutput.split(separator: "\n") {
+                    let parts = line.split(separator: "\t")
+                    guard parts.count == 2, let kilobytes = UInt64(parts[0]) else { continue }
+                    let name = String(parts[1].split(separator: "/").last ?? "")
+                    sizes["\(prefix)\(name)"] = kilobytes * 1024
+                }
             }
         }
 
@@ -438,7 +507,12 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).update()
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let output = try await runTask(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 300,
+                defaultMessage: "Updating Homebrew…"
+            )
             let (newFormulae, newCasks) = Self.parseNewPackages(from: output)
             self.newFormulaNames = newFormulae
             self.newCaskNames = newCasks
@@ -466,9 +540,15 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).cleanup(dryRun: dryRun)
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let output = try await runTask(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 300,
+                defaultMessage: dryRun ? "Checking what can be cleaned…" : "Cleaning up Homebrew…"
+            )
             self.lastError = nil
             if !dryRun {
+                invalidateInstalledSizeCache()
                 try await refreshInstalledPackages()
             }
             return output
@@ -511,12 +591,13 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).doctor(json: true)
 
         do {
-            let output = try await processManager.execute(
+            let output = try await runTask(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 120,
+                timeout: 300,
                 allowNonZeroExit: true,
-                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"],
+                defaultMessage: "Running brew doctor…"
             )
             self.lastError = nil
             return outputParser.parseDoctor(output)
@@ -533,11 +614,12 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(dryRun: true)
         
         do {
-            let output = try await processManager.execute(
+            let output = try await runTask(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 30,
-                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
+                timeout: 120,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"],
+                defaultMessage: "Checking for available upgrades…"
             )
             return output
         } catch {
@@ -547,6 +629,21 @@ public final class BrewService: ObservableObject {
     }
 
     public func checkForUpdates() async throws {
+        if let existing = updatesCheckTask {
+            try await existing.value
+            return
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try await self.performCheckForUpdates()
+        }
+        updatesCheckTask = task
+        defer { updatesCheckTask = nil }
+        try await task.value
+    }
+
+    private func performCheckForUpdates() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true)
 
@@ -616,7 +713,7 @@ public final class BrewService: ObservableObject {
     }
 
     private func validateFormulaName(_ name: String) -> Bool {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@"))
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./@+"))
         return name.unicodeScalars.allSatisfy { allowed.contains($0) }
     }
 

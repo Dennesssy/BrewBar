@@ -106,28 +106,18 @@ public final class ServicesManager: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesAction(action, formula: name)
         let commandArgs = builder.buildArguments()
 
-        let brewService = BrewService.shared
-        brewService.activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
-        brewService.activeTaskConsoleOutput = ""
-        brewService.activeTaskMessage = "\(action.rawValue.capitalized)ing service \(name)..."
-
         do {
-            let output = try await processManager.execute(
-                executablePath: builder.executablePath, 
-                arguments: commandArgs, 
+            let output = try await BrewService.shared.runTask(
+                executablePath: builder.executablePath,
+                arguments: commandArgs,
                 timeout: 60,
-                outputHandler: { out in
-                    Task { @MainActor in
-                        brewService.activeTaskConsoleOutput += out
-                    }
-                }
+                defaultMessage: "\(action.rawValue.capitalized)ing service \(name)..."
             )
             self.lastError = nil
             HistoryStore.shared.log(packageName: name, packageType: "service", action: "service \(action.rawValue)", details: output)
         } catch {
             self.lastError = errorHandler.handle(error)
         }
-        brewService.activeTaskMessage = nil
         await refresh()
     }
 }
@@ -154,35 +144,42 @@ public final class SearchService: ObservableObject {
         self.isSearching = true
         defer { self.isSearching = false }
 
-        var candidates: [FormulaItem] = []
+        // Search the full Homebrew catalog locally, so results are complete
+        // and instant instead of depending on GitHub's topic search.
+        let catalog = HomebrewCatalogService.shared
+        await catalog.loadIfNeeded()
+        var results = catalog.search(cleanQuery, limit: 80)
 
-        // 1. Local installed packages candidates
-        candidates.append(contentsOf: BrewService.shared.installedPackages)
-
-        // 2. Remote GitHub Search candidates
-        do {
-            let remote = try await githubClient.searchFormulas(query: cleanQuery)
-            let existingIds = Set(candidates.map { $0.id })
-            for item in remote {
-                if !existingIds.contains(item.id) {
-                    candidates.append(item)
-                }
-            }
-        } catch {
-            Logger.shared.error("Remote search error: \(error.localizedDescription)")
+        // Packages from taps or deprecated formulae may not be in the public
+        // catalog; include installed matches that the catalog missed.
+        let knownIds = Set(results.map(\.id))
+        let installedMatches = BrewService.shared.installedPackages.filter { item in
+            guard !knownIds.contains(item.id) else { return false }
+            return item.name.localizedCaseInsensitiveContains(cleanQuery)
+                || item.id.localizedCaseInsensitiveContains(cleanQuery)
+                || item.description.localizedCaseInsensitiveContains(cleanQuery)
+        }
+        if !installedMatches.isEmpty {
+            results.insert(contentsOf: installedMatches, at: 0)
         }
 
-        // Apply type filter if selected
         if let type = filters.selectedType {
-            candidates = candidates.filter { $0.type == type }
+            results = results.filter { $0.type == type }
         }
 
-        // Apply Semantic Lookup and Relevance Ranking
-        let rankedResults = SemanticSearchEngine.searchAndRank(items: candidates, query: cleanQuery)
+        // Only reach for GitHub when the catalog has nothing — it is a
+        // suggestion fallback, not the primary index.
+        if results.isEmpty, cleanQuery.count >= 3 {
+            do {
+                results = try await githubClient.searchFormulas(query: cleanQuery)
+            } catch {
+                Logger.shared.error("Remote search error: \(error.localizedDescription)")
+            }
+        }
 
-        self.searchResults = rankedResults
+        self.searchResults = results
         addToRecentSearches(cleanQuery)
-        return rankedResults
+        return results
     }
 
     private func addToRecentSearches(_ query: String) {
@@ -198,94 +195,3 @@ public final class SearchService: ObservableObject {
     }
 }
 
-@MainActor
-public final class UpdateCheckService: ObservableObject {
-    public static let shared = UpdateCheckService()
-
-    @Published public private(set) var lastCheckTime: Date?
-    private var timer: Timer?
-
-    public init() {}
-
-    public func startPeriodicChecks(interval: TimeInterval = 3600) {
-        stopPeriodicChecks()
-        Task {
-            await performCheck()
-        }
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.performCheck()
-            }
-        }
-    }
-
-    public func stopPeriodicChecks() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    public func performCheck() async {
-        do {
-            try await BrewService.shared.checkForUpdates()
-            self.lastCheckTime = Date()
-        } catch {
-            Logger.shared.error("Update check failed: \(error.localizedDescription)")
-        }
-    }
-}
-
-@MainActor
-public final class NotificationManager: ObservableObject {
-    public static let shared = NotificationManager()
-
-    public init() {}
-
-    public func notifyInstallationComplete(packageName: String) {
-        Logger.shared.info("Notification: Installation completed for \(packageName)")
-    }
-
-    public func notifyInstallationFailed(packageName: String, error: String) {
-        Logger.shared.error("Notification: Installation failed for \(packageName): \(error)")
-    }
-}
-
-@MainActor
-public final class GitHubAuthManager: ObservableObject {
-    public static let shared = GitHubAuthManager()
-
-    @Published public private(set) var currentUser: GitHubUser?
-    @Published public private(set) var isAuthenticated: Bool = false
-    @Published public private(set) var isAuthenticating: Bool = false
-    @Published public var authError: String?
-
-    public init() {
-        loadStoredToken()
-    }
-
-    public func logout() {
-        currentUser = nil
-        isAuthenticated = false
-        try? KeychainManager.shared.deleteToken(service: "github_oauth_token")
-    }
-
-    private func loadStoredToken() {
-        Task {
-            if let token = try? KeychainManager.shared.retrieveToken(service: "github_oauth_token"), !token.isEmpty {
-                self.isAuthenticated = true
-            }
-        }
-    }
-}
-
-@MainActor
-public final class AnalyticsService: ObservableObject {
-    public static let shared = AnalyticsService()
-
-    public init() {}
-
-    public func logEvent(name: String, parameters: [String: String] = [:]) {
-        Task {
-            await AnalyticsReporter.shared.trackEvent(name: name, parameters: parameters)
-        }
-    }
-}

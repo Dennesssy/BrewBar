@@ -12,4 +12,16 @@ public enum HomebrewPath {
         return "/usr/local/bin/brew"
         #endif
     }()
+
+    /// Standard install locations, checked in order. Used when the configured
+    /// path is wrong but Homebrew is present somewhere else (e.g. Rosetta).
+    public static func locateInstalled() -> String? {
+        let candidates = [
+            "/opt/homebrew/bin/brew",
+            "/usr/local/bin/brew",
+            NSHomeDirectory() + "/.linuxbrew/bin/brew",
+            "/home/linuxbrew/.linuxbrew/bin/brew"
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
 }

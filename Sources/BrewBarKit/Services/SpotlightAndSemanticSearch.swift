@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 public actor SpotlightIndexer {
     public static let shared = SpotlightIndexer()
 
-    private let domainIdentifier = "com.dennesssy.brewbar.packages"
+    private let domainIdentifier = AppIdentity.spotlightDomain
 
     public init() {}
 

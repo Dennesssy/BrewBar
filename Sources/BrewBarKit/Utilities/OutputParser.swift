@@ -23,6 +23,13 @@ public struct BrewOutdatedCask: Codable, Sendable {
     public let current_version: String?
 }
 
+/// One installed keg entry from `brew info --json=v2 --installed`.
+/// `time` is epoch seconds; a formula can have several kegs installed.
+public struct BrewInstalledKeg: Codable, Sendable {
+    public let version: String?
+    public let time: Double?
+}
+
 public struct BrewFormula: Codable, Sendable {
     public let name: String
     public let full_name: String?
@@ -32,6 +39,13 @@ public struct BrewFormula: Codable, Sendable {
     public let outdated: Bool?
     public let homepage: String?
     public let license: String?
+    public let pinned: Bool?
+    public let linked_keg: String?
+    public let installed: [BrewInstalledKeg]?
+    /// Runtime dependency names as plain strings (e.g. "fmt", "simdutf").
+    public let dependencies: [String]?
+    /// Deps satisfied by macOS itself — still real dependencies for tree views.
+    public let uses_from_macos: [String]?
 }
 
 public struct BrewCask: Codable, Sendable {
@@ -42,6 +56,14 @@ public struct BrewCask: Codable, Sendable {
     public let current_version: String?
     public let outdated: Bool?
     public let homepage: String?
+    public let pinned: Bool?
+    /// Latest version known to the tap (may carry a ",build" suffix).
+    public let version: String?
+    /// Installed version spec, e.g. "1.13.0" or "1.1.19,4894004681244672".
+    /// `brew info --json=v2 --installed` emits this as a string, not an array.
+    public let installed: String?
+    /// Epoch seconds when the cask was installed.
+    public let installed_time: Double?
 }
 
 /// Matches the real `brew services list --json` schema: an array of objects
@@ -81,9 +103,19 @@ public struct OutputParser: Sendable {
         let skipped: [VulnsJSONSkipped]?
     }
 
-    private struct DoctorJSONError: Codable {
-        let warning: String?
-        let error: String?
+    /// `brew doctor --json` → `{"tier": 1, "findings": [{text, remediation}]}`.
+    private struct DoctorJSONRoot: Codable {
+        let findings: [DoctorJSONFinding]
+    }
+
+    private struct DoctorJSONFinding: Codable {
+        let text: String
+        let remediation: Remediation?
+
+        struct Remediation: Codable {
+            let commands: [String]?
+            let text: String?
+        }
     }
 
 
@@ -137,18 +169,21 @@ public struct OutputParser: Sendable {
     public func parseDoctor(_ output: String) -> [DoctorIssue] {
         // Try parsing as JSON first
         if let data = output.data(using: .utf8),
-           let jsonIssues = try? JSONDecoder().decode([DoctorJSONError].self, from: data) {
-            
-            var parsedIssues: [DoctorIssue] = []
-            for issue in jsonIssues {
-                if let warning = issue.warning {
-                    parsedIssues.append(parseDoctorTextIssue(warning, severity: .warning))
-                }
-                if let error = issue.error {
-                    parsedIssues.append(parseDoctorTextIssue(error, severity: .error))
-                }
+           let root = try? JSONDecoder().decode(DoctorJSONRoot.self, from: data) {
+            // Every doctor finding is printed as "Warning:" in text mode;
+            // the JSON form carries no separate error/warning distinction.
+            return root.findings.map { finding in
+                let lines = finding.text.components(separatedBy: "\n")
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                let remediation = finding.remediation?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let details = (Array(lines.dropFirst()) + (remediation.isEmpty ? [] : [remediation]))
+                    .joined(separator: "\n")
+                let fixCommand = finding.remediation?.commands?.first
+                    .map { $0.components(separatedBy: " ").filter { !$0.isEmpty } }
+                    .map { $0.first == "brew" ? Array($0.dropFirst()) : $0 }
+                return DoctorIssue(severity: .warning, summary: lines.first ?? "Unknown issue", details: details, fixCommand: fixCommand)
             }
-            return parsedIssues.sorted { $0.severity > $1.severity }
         }
         
         // Fallback to plain text parsing
@@ -207,8 +242,14 @@ public struct OutputParser: Sendable {
                 let title = parts[0].trimmingCharacters(in: .whitespaces)
                 let content = parts[1].trimmingCharacters(in: .whitespaces)
                 sections.append(BrewConfigSection(title: title, content: content))
-            } else {
-                sections.append(BrewConfigSection(title: "Other", content: trimmed))
+            } else if let last = sections.last {
+                // `brew config` emits occasional bare continuation lines (build
+                // details, warnings) — fold them into the previous entry rather
+                // than spawning a pile of identical "Other" rows.
+                sections[sections.count - 1] = BrewConfigSection(
+                    title: last.title,
+                    content: last.content.isEmpty ? trimmed : last.content + "\n" + trimmed
+                )
             }
         }
         
@@ -236,23 +277,35 @@ public struct OutputParser: Sendable {
         var items: [FormulaItem] = []
 
         for formula in output.formulae {
-            let version = formula.installed_versions?.first ?? "unknown"
+            // Prefer the keg record: it carries the real installed version and
+            // install time. `installed_versions` is a fallback for older brew.
+            let keg = formula.installed?.first
+            let version = keg?.version ?? formula.installed_versions?.first ?? formula.current_version ?? "unknown"
+            let installedDate = keg?.time.map { Date(timeIntervalSince1970: $0) }
+            let dependencies = (formula.dependencies ?? []) + (formula.uses_from_macos ?? [])
             items.append(FormulaItem(
                 id: formula.name,
                 name: formula.name,
                 fullTitle: formula.full_name ?? formula.name,
                 description: formula.desc ?? "",
                 currentVersion: version,
+                latestVersion: formula.current_version,
                 type: .formula,
                 homepage: formula.homepage,
                 license: formula.license,
-                installedDate: Date(),
-                lastChecked: Date()
+                installedDate: installedDate,
+                lastChecked: Date(),
+                isPinned: formula.pinned ?? false,
+                dependencies: dependencies.map { Dependency(name: $0) }
             ))
         }
 
         for cask in output.casks {
-            let version = cask.installed_versions?.first ?? "unknown"
+            // `brew info --json=v2 --installed` has no `installed_versions` for
+            // casks — the installed spec lives in `installed` (a string that may
+            // carry a ",build" suffix) and the tap's latest in `version`.
+            let version = cask.installed ?? cask.installed_versions?.first ?? cask.current_version ?? "unknown"
+            let installedDate = cask.installed_time.map { Date(timeIntervalSince1970: $0) }
             let name = cask.name?.first ?? cask.token
             items.append(FormulaItem(
                 id: cask.token,
@@ -260,10 +313,12 @@ public struct OutputParser: Sendable {
                 fullTitle: cask.token,
                 description: cask.desc ?? "",
                 currentVersion: version,
+                latestVersion: cask.version,
                 type: .cask,
                 homepage: cask.homepage,
-                installedDate: Date(),
-                lastChecked: Date()
+                installedDate: installedDate,
+                lastChecked: Date(),
+                isPinned: cask.pinned ?? false
             ))
         }
 

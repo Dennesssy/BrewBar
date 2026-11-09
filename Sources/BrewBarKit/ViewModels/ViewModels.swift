@@ -26,7 +26,10 @@ public final class HomeViewModel: ObservableObject {
         await catalog.loadIfNeeded()
         featured = catalog.topFormulas(limit: 6)
         recommended = catalog.topCasks(limit: 6)
-        recentlyUpdated = brewService.installedPackages.prefix(6).map { $0 }
+        recentlyUpdated = brewService.installedPackages
+            .sorted { ($0.installedDate ?? .distantPast) > ($1.installedDate ?? .distantPast) }
+            .prefix(6)
+            .map { $0 }
     }
 }
 
@@ -83,29 +86,45 @@ public final class UpdatesViewModel: ObservableObject {
     @Published public private(set) var availableUpdates: [FormulaItem] = []
     @Published public private(set) var isUpdating: Bool = false
     @Published public private(set) var updateProgress: Double = 0.0
+    @Published public private(set) var isChecking = false
+    @Published public private(set) var lastCheckError: BrewBarError?
 
     private let brewService = BrewService.shared
 
     public init() {}
 
     public func checkForUpdates() async {
+        guard !isChecking else { return }
+        isChecking = true
+        defer { isChecking = false }
+
         do {
             try await brewService.checkForUpdates()
             self.availableUpdates = brewService.availableUpdates
+            self.lastCheckError = nil
         } catch {
-            self.availableUpdates = []
+            let handled = brewService.handledError(for: error)
+            self.lastCheckError = handled
         }
     }
 
     public func updateAll() async {
         isUpdating = true
         defer { isUpdating = false }
-        try? await brewService.upgradeAll()
+        do {
+            try await brewService.upgradeAll()
+        } catch {
+            brewService.report(error)
+        }
         await checkForUpdates()
     }
 
     public func updateItem(_ item: FormulaItem) async {
-        try? await brewService.upgradeFormula(item.id, type: item.type)
+        do {
+            try await brewService.upgradeFormula(item.id, type: item.type)
+        } catch {
+            brewService.report(error)
+        }
         await checkForUpdates()
     }
 }
@@ -116,18 +135,52 @@ public final class SearchViewModel: ObservableObject {
     @Published public var filterState = FilterState()
     @Published public private(set) var results: [FormulaItem] = []
     @Published public private(set) var isSearching: Bool = false
+    @Published public private(set) var hasSearched: Bool = false
 
     private let searchService = SearchService.shared
+    private var searchTask: Task<Void, Never>?
 
     public init() {}
 
-    public func performSearch() async {
-        try? await Task.sleep(nanoseconds: 300_000_000) // 300ms debounce
-        if Task.isCancelled { return }
+    /// Debounced live search: typing cancels the previous request so only the
+    /// latest query can publish results.
+    public func scheduleSearch() {
+        searchTask?.cancel()
 
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanQuery.isEmpty else {
+            results = []
+            hasSearched = false
+            isSearching = false
+            return
+        }
+
+        results = []
         isSearching = true
-        defer { isSearching = false }
-        results = await searchService.search(query, filters: filterState)
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            await self?.performSearch(for: cleanQuery)
+        }
+    }
+
+    public func performSearch() async {
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanQuery.isEmpty else { return }
+        searchTask?.cancel()
+        isSearching = true
+        await performSearch(for: cleanQuery)
+    }
+
+    private func performSearch(for cleanQuery: String) async {
+        let searchResults = await searchService.search(cleanQuery, filters: filterState)
+        // A cancelled or superseded search leaves `isSearching` to its
+        // successor; only the live task clears the spinner.
+        guard !Task.isCancelled else { return }
+        guard query.trimmingCharacters(in: .whitespacesAndNewlines) == cleanQuery else { return }
+        isSearching = false
+        results = searchResults
+        hasSearched = true
     }
 }
 
@@ -165,7 +218,7 @@ public final class FormulaDetailViewModel: ObservableObject {
         isFetchingDetails = true
         
         Task {
-            let token = try? KeychainManager.shared.retrieveToken(service: "com.dennesssy.brewbar.github")
+            let token = try? KeychainManager.shared.retrieveToken(service: AppIdentity.githubKeychainService)
             
             func makeRequest(for urlStr: String) -> URLRequest? {
                 guard let url = URL(string: urlStr) else { return nil }
@@ -215,40 +268,45 @@ public final class FormulaDetailViewModel: ObservableObject {
         }
     }
 
-    private func fetchManPage() async {
-        let processManager = ProcessManager()
+    /// Shared so the catalog memo and doc cache survive across detail views.
+    /// Rebuilt only when the Homebrew path in preferences changes.
+    private static var toolDiscovery: ToolDiscoveryService?
+    private static var toolDiscoveryBrewPath: String?
 
-        // Try getting the man page first
-        do {
-            let output = try await processManager.execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
-            if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
-                self.manPage = output
+    private static func sharedToolDiscovery(brewPath: String) -> ToolDiscoveryService {
+        if let existing = toolDiscovery, toolDiscoveryBrewPath == brewPath {
+            return existing
+        }
+        let service = ToolDiscoveryService(brewPath: brewPath)
+        toolDiscovery = service
+        toolDiscoveryBrewPath = brewPath
+        return service
+    }
+
+    private func fetchManPage() async {
+        // Formulae: resolve the linked binary (ripgrep -> rg) and read its man page or sandboxed --help.
+        if formula.type == .formula {
+            let prefs = await LocalStorageManager.shared.loadPreferences()
+            let discovery = Self.sharedToolDiscovery(brewPath: prefs.homebrewPrefix)
+            let candidates = ((try? await discovery.listTools()) ?? []).filter { $0.formula == formula.name }
+            // Exact-name match first, then the catalog's own ranking — an
+            // alphabetical `min` could pick a secondary binary (e.g. a
+            // `-fzf` companion) and show the wrong man page.
+            let chosen = candidates.first { $0.name == formula.name } ?? candidates.first
+            if let tool = chosen,
+               let doc = try? await discovery.documentation(for: tool.name),
+               !doc.rawText.isEmpty {
+                self.manPage = doc.rawText
                 return
             }
-        } catch {}
+        }
 
-        // Fallback to --help
+        // Casks and formulae with no binaries: man page under the formula name only.
+        // No --help fallback here: unknown binaries must not run unsandboxed.
         do {
-            // Find the binary path for the formula
-            let paths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]
-            var binaryPath: String?
-            for path in paths {
-                let checkPath = (path as NSString).appendingPathComponent(formula.name)
-                if FileManager.default.isExecutableFile(atPath: checkPath) {
-                    binaryPath = checkPath
-                    break
-                }
-            }
-            
-            if let executablePath = binaryPath {
-                let binOutput = try await processManager.execute(
-                    executablePath: executablePath,
-                    arguments: ["--help"],
-                    timeout: 10
-                )
-                if !binOutput.isEmpty {
-                    self.manPage = binOutput
-                }
+            let output = try await ProcessManager().execute(executablePath: "/usr/bin/man", arguments: ["-P", "cat", formula.name])
+            if !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !output.contains("No manual entry for") {
+                self.manPage = ManPageText.stripOverstrike(output)
             }
         } catch {}
     }
@@ -270,6 +328,8 @@ public final class FormulaDetailViewModel: ObservableObject {
 
 @MainActor
 public final class PreferencesViewModel: ObservableObject {
+    public static let shared = PreferencesViewModel()
+
     @Published public var preferences: UserPreferences = UserPreferences()
 
     @Published public var githubToken: String = ""
@@ -279,7 +339,7 @@ public final class PreferencesViewModel: ObservableObject {
     public init() {
         Task {
             self.preferences = await LocalStorageManager.shared.loadPreferences()
-            if let token = try? KeychainManager.shared.retrieveToken(service: "com.dennesssy.brewbar.github") {
+            if let token = try? KeychainManager.shared.retrieveToken(service: AppIdentity.githubKeychainService) {
                 self.githubToken = token
             }
         }
@@ -293,9 +353,9 @@ public final class PreferencesViewModel: ObservableObject {
     
     public func saveToken(_ token: String) {
         if token.isEmpty {
-            try? KeychainManager.shared.deleteToken(service: "com.dennesssy.brewbar.github")
+            try? KeychainManager.shared.deleteToken(service: AppIdentity.githubKeychainService)
         } else {
-            try? KeychainManager.shared.saveToken(token, service: "com.dennesssy.brewbar.github")
+            try? KeychainManager.shared.saveToken(token, service: AppIdentity.githubKeychainService)
         }
     }
     
