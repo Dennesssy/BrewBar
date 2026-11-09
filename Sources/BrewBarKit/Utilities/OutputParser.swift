@@ -242,8 +242,14 @@ public struct OutputParser: Sendable {
                 let title = parts[0].trimmingCharacters(in: .whitespaces)
                 let content = parts[1].trimmingCharacters(in: .whitespaces)
                 sections.append(BrewConfigSection(title: title, content: content))
-            } else {
-                sections.append(BrewConfigSection(title: "Other", content: trimmed))
+            } else if let last = sections.last {
+                // `brew config` emits occasional bare continuation lines (build
+                // details, warnings) — fold them into the previous entry rather
+                // than spawning a pile of identical "Other" rows.
+                sections[sections.count - 1] = BrewConfigSection(
+                    title: last.title,
+                    content: last.content.isEmpty ? trimmed : last.content + "\n" + trimmed
+                )
             }
         }
         
