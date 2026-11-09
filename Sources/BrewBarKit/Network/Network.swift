@@ -70,16 +70,27 @@ public actor GitHubAPIClient {
         guard !query.isEmpty else { return [] }
 
         var components = URLComponents(string: "https://api.github.com/search/repositories")
-        components?.queryItems = [URLQueryItem(name: "q", value: "\(query) topic:homebrew-formula")]
+        components?.queryItems = [URLQueryItem(
+            name: "q",
+            value: "\(query) (topic:homebrew-formula OR topic:homebrew-cask)"
+        )]
 
         guard let url = components?.url else {
             throw BrewBarError.networkError("Invalid search URL")
         }
 
-        let result: GitHubSearchResult = try await httpClient.request(url, headers: [
+        var headers = [
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "BrewBar-App"
-        ])
+        ]
+        // The Preferences token exists for exactly this: anonymous search is
+        // 10 req/min, authenticated is 30.
+        if let token = try? KeychainManager.shared.retrieveToken(service: AppIdentity.githubKeychainService),
+           !token.isEmpty {
+            headers["Authorization"] = "Bearer \(token)"
+        }
+
+        let result: GitHubSearchResult = try await httpClient.request(url, headers: headers)
 
         return result.items.map { repo in
             FormulaItem(
@@ -96,24 +107,3 @@ public actor GitHubAPIClient {
     }
 }
 
-public actor NotaryScannerAPI {
-    public static let shared = NotaryScannerAPI()
-
-    public init() {}
-
-    public func verifyCaskSafety(caskToken: String) async -> Bool {
-        // Mock verification check for cask notarization / security
-        return true
-    }
-}
-
-public actor AnalyticsReporter {
-    public static let shared = AnalyticsReporter()
-
-    public init() {}
-
-    public func trackEvent(name: String, parameters: [String: String] = [:]) async {
-        // Anonymized telemetry stub respecting user privacy
-        Logger.shared.debug("Analytics event tracked: \(name) with params \(parameters)")
-    }
-}

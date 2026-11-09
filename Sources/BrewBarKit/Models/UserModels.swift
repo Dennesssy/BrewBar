@@ -2,39 +2,6 @@
 
 import Foundation
 
-public struct GitHubUser: Codable, Sendable, Identifiable, Hashable {
-    public let id: Int
-    public let login: String
-    public let name: String?
-    public let avatarUrl: String
-    public let bio: String?
-    public let publicRepos: Int
-    public let followers: Int
-    public let createdAt: String
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case login
-        case name
-        case avatarUrl = "avatar_url"
-        case bio
-        case publicRepos = "public_repos"
-        case followers
-        case createdAt = "created_at"
-    }
-
-    public init(id: Int, login: String, name: String? = nil, avatarUrl: String = "", bio: String? = nil, publicRepos: Int = 0, followers: Int = 0, createdAt: String = "") {
-        self.id = id
-        self.login = login
-        self.name = name
-        self.avatarUrl = avatarUrl
-        self.bio = bio
-        self.publicRepos = publicRepos
-        self.followers = followers
-        self.createdAt = createdAt
-    }
-}
-
 public enum DarkModeSetting: String, Codable, Sendable, CaseIterable, Identifiable {
     case system = "System"
     case light = "Light"
