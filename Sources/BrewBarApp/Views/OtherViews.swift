@@ -340,10 +340,12 @@ public struct PreferencesView: View {
             
             Section("GitHub Integration") {
                 SecureField("GitHub Personal Access Token", text: $viewModel.githubToken)
-                    .onChange(of: viewModel.githubToken) { _, newValue in
-                        viewModel.saveToken(newValue)
+                    .onSubmit {
+                        // Commit on submit, not per keystroke — saving each
+                        // character would persist half-typed tokens.
+                        viewModel.saveToken(viewModel.githubToken)
                     }
-                Text("Adding a token increases the GitHub API rate limit from 60 to 5,000 requests per hour, preventing rich package details from failing to load. This is securely stored in your Keychain.")
+                Text("Adding a token increases the GitHub API rate limit from 60 to 5,000 requests per hour, preventing rich package details from failing to load. This is securely stored in your Keychain. Press Return to save.")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -465,7 +467,7 @@ public struct PreferencesView: View {
                     if let cleanupResult, !cleanupResult.isEmpty {
                         Text(cleanupResult)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(cleanupResult.hasPrefix("Clean up failed") ? .red : .secondary)
                     }
                 }
 
@@ -510,7 +512,7 @@ public struct PreferencesView: View {
                     if let autoremoveResult, !autoremoveResult.isEmpty {
                         Text(autoremoveResult)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(autoremoveResult.hasPrefix("Autoremove failed") ? .red : .secondary)
                     }
                 }
                 
