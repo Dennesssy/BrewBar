@@ -6,6 +6,7 @@ import BrewBarKit
 
 public struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
+    @State private var showClearConfirmation = false
     @Query(sort: \HistoryRecord.timestamp, order: .reverse) private var records: [HistoryRecord]
     
     public init() {}
@@ -63,11 +64,18 @@ public struct HistoryView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(role: .destructive) {
-                    HistoryStore.shared.clearAll()
+                    showClearConfirmation = true
                 } label: {
                     Label("Clear History", systemImage: "trash")
                 }
             }
+        }
+        .confirmationDialog("Clear all history?", isPresented: $showClearConfirmation, titleVisibility: .visible) {
+            Button("Clear History", role: .destructive) {
+                HistoryStore.shared.clearAll()
+            }
+        } message: {
+            Text("This permanently removes the record of every package action BrewBar has performed. This cannot be undone.")
         }
 
     }

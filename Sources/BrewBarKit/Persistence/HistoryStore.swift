@@ -12,7 +12,13 @@ public struct HistoryStore {
         do {
             container = try ModelContainer(for: HistoryRecord.self)
         } catch {
-            fatalError("Failed to create SwiftData container for HistoryRecord: \(error)")
+            // A corrupted on-disk store must not crash the app — fall back to
+            // an in-memory container so history just doesn't persist.
+            Logger.shared.error("HistoryStore: falling back to in-memory container: \(error)")
+            container = try! ModelContainer(
+                for: HistoryRecord.self,
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            )
         }
     }
     
