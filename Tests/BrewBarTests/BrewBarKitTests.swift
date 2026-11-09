@@ -328,16 +328,18 @@ final class BrewBarKitTests: XCTestCase {
     @MainActor
     func testAccountsViewModelGcloudParser() async {
         let viewModel = AccountsViewModel()
+        // `gcloud auth list --format=value(account,status)` emits
+        // comma-separated "account,status" rows; ACTIVE marks the session.
         let gcloudOutput = """
-        dennis@example.com ACTIVE
-        other@example.com
+        dennis@example.com,ACTIVE
+        other@example.com,
         """
         let status = viewModel.parseGcloudStatus(output: gcloudOutput, command: "gcloud auth list")
         XCTAssertEqual(status.state, .loggedIn)
         XCTAssertEqual(status.account, "dennis@example.com")
-        
+
         let gcloudNotLoggedIn = """
-        other@example.com
+        other@example.com,
         """
         let status2 = viewModel.parseGcloudStatus(output: gcloudNotLoggedIn, command: "gcloud auth list")
         XCTAssertEqual(status2.state, .notLoggedIn)
