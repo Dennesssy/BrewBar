@@ -12,7 +12,10 @@ public final class BrewService: ObservableObject {
     @Published public private(set) var isUpdatingHomebrew: Bool = false
     @Published public private(set) var isCleaningUp: Bool = false
     @Published public private(set) var isRunningDoctor: Bool = false
-    
+    /// Errors from actions the user explicitly triggered. `lastError` also
+    /// records background refresh failures, which shouldn't pop an alert.
+    @Published public var presentedError: BrewBarError?
+
     @Published public var activeTaskMessage: String?
     @Published public var activeTaskProgress: Double?
     @Published public var activeTaskCommand: String?
@@ -31,10 +34,27 @@ public final class BrewService: ObservableObject {
     private let outputParser = OutputParser()
     private let errorHandler = ErrorHandler()
 
+    private var installedRefreshTask: Task<Void, Error>?
+    private var updatesCheckTask: Task<Void, Error>?
+    private var installedSizeCache: (timestamp: Date, sizes: [String: UInt64])?
+    private static let installedSizeCacheLifetime: TimeInterval = 600
+
     public init() {}
 
     public func cancelActiveTask() async {
         await taskProcessManager.cancel()
+    }
+
+    public func report(_ error: Error) {
+        presentedError = errorHandler.handle(error)
+    }
+
+    public func handledError(for error: Error) -> BrewBarError {
+        errorHandler.handle(error)
+    }
+
+    private func invalidateInstalledSizeCache() {
+        installedSizeCache = nil
     }
 
     public func installFormula(_ name: String, type: PackageType? = nil) async throws {
@@ -61,6 +81,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "install", details: output) }
         } catch {
@@ -86,6 +107,7 @@ public final class BrewService: ObservableObject {
             )
             self.lastError = nil
             if !dryRun {
+                invalidateInstalledSizeCache()
                 try await refreshInstalledPackages()
             }
             return output
@@ -225,6 +247,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             try await checkForUpdates()
             await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "upgrade", details: output) }
@@ -257,6 +280,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             try await checkForUpdates()
             await MainActor.run { HistoryStore.shared.log(packageName: "All", packageType: "multiple", action: "upgradeAll") }
@@ -307,6 +331,7 @@ public final class BrewService: ObservableObject {
                 }
             )
             self.lastError = nil
+            invalidateInstalledSizeCache()
             try await refreshInstalledPackages()
             try await checkForUpdates()
             await MainActor.run { HistoryStore.shared.log(packageName: name, packageType: type?.rawValue ?? "unknown", action: "uninstall", details: output) }
@@ -321,6 +346,23 @@ public final class BrewService: ObservableObject {
     }
 
     public func refreshInstalledPackages() async throws {
+        // Every tab's `.task` asks for this on first appearance; sharing the
+        // in-flight work avoids duplicate `brew list` + `du` sweeps.
+        if let existing = installedRefreshTask {
+            try await existing.value
+            return
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try await self.performRefreshInstalledPackages()
+        }
+        installedRefreshTask = task
+        defer { installedRefreshTask = nil }
+        try await task.value
+    }
+
+    private func performRefreshInstalledPackages() async throws {
         isLoading = true
         defer { isLoading = false }
 
@@ -331,7 +373,15 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"])
             var packages = try outputParser.parseInstalledPackages(output)
 
-            let sizes = await computeInstalledSizes(brewPath: prefs.homebrewPrefix)
+            let sizes: [String: UInt64]
+            if let cache = installedSizeCache,
+               Date().timeIntervalSince(cache.timestamp) < Self.installedSizeCacheLifetime {
+                sizes = cache.sizes
+            } else {
+                sizes = await computeInstalledSizes(brewPath: prefs.homebrewPrefix)
+                installedSizeCache = (Date(), sizes)
+            }
+
             if !sizes.isEmpty {
                 packages = packages.map { item in
                     guard let bytes = sizes[item.id] else { return item }
@@ -449,6 +499,7 @@ public final class BrewService: ObservableObject {
             let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
             self.lastError = nil
             if !dryRun {
+                invalidateInstalledSizeCache()
                 try await refreshInstalledPackages()
             }
             return output
@@ -527,6 +578,21 @@ public final class BrewService: ObservableObject {
     }
 
     public func checkForUpdates() async throws {
+        if let existing = updatesCheckTask {
+            try await existing.value
+            return
+        }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try await self.performCheckForUpdates()
+        }
+        updatesCheckTask = task
+        defer { updatesCheckTask = nil }
+        try await task.value
+    }
+
+    private func performCheckForUpdates() async throws {
         let prefs = await LocalStorageManager.shared.loadPreferences()
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).outdated(json: true)
 

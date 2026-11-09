@@ -40,10 +40,13 @@ public actor ToolDiscoveryService: ToolDiscoveryProviding {
     }
 
     /// Additive, deterministic score. Each field takes its best tier only:
-    ///   name:    exact 100 · prefix 60 · word start 40 · mid-word 20
+    ///   name:    exact 100 · prefix 60 · word start 40 · mid-word 10
     ///   formula: exact 50  · prefix 30 · word start 20 · mid-word 15
-    ///   summary: whole word 30 · mid-word 5
-    ///   primary binary (name == formula) +5, only when something else matched.
+    ///   summary: whole word 30 · word prefix 20 · mid-word 5
+    ///   primary binary (name == formula) +10, only when something else matched.
+    /// Mid-word name hits are the noisiest class (substrings of unrelated words), so they
+    /// sit below any word-boundary hit. A word prefix in a summary ("compress" in
+    /// "compression") is a word-boundary match, weaker than the exact word.
     /// Sort: score desc, then shorter name, then alphabetical. An empty query returns
     /// the first `limit` tools in catalog order.
     static func rank(_ tools: [InstalledTool], query: String, limit: Int) -> [InstalledTool] {
@@ -77,7 +80,7 @@ public actor ToolDiscoveryService: ToolDiscoveryProviding {
         } else if words(in: name).contains(where: { $0.hasPrefix(needle) }) {
             score += 40
         } else if name.contains(needle) {
-            score += 20
+            score += 10
         }
 
         if formula == needle {
@@ -93,13 +96,15 @@ public actor ToolDiscoveryService: ToolDiscoveryProviding {
         if let summary = tool.summary?.lowercased() {
             if words(in: summary).contains(where: { $0 == needle }) {
                 score += 30
+            } else if words(in: summary).contains(where: { $0.hasPrefix(needle) }) {
+                score += 20
             } else if summary.contains(needle) {
                 score += 5
             }
         }
 
         guard score > 0 else { return 0 }
-        return tool.name == tool.formula ? score + 5 : score
+        return tool.name == tool.formula ? score + 10 : score
     }
 
     private static func words(in text: String) -> [Substring] {

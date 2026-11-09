@@ -55,7 +55,7 @@ public struct UserPreferences: Codable, Sendable, Hashable {
     public var allowVulnerabilityLookups: Bool
 
     public init(
-        launchAtLogin: Bool = true,
+        launchAtLogin: Bool = false,
         showMenuBarIcon: Bool = true,
         checkForAppUpdates: Bool = true,
         darkMode: DarkModeSetting = .system,

@@ -9,34 +9,40 @@ public struct InstalledView: View {
     public init() {}
 
     public var body: some View {
-        VStack {
-            HStack {
-                TextField("Search installed packages...", text: $viewModel.filterState.searchQuery)
-                    .textFieldStyle(.roundedBorder)
+        VStack(spacing: 0) {
+            controls
+            Divider()
 
-                Picker("Sort", selection: $viewModel.sortOrder) {
-                    ForEach(SortOrderOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
+            if viewModel.filteredFormulas.isEmpty {
+                emptyState
+            } else {
+                List(viewModel.filteredFormulas) { item in
+                    NavigationLink(destination: FormulaDetailView(formula: item)) {
+                        HStack(spacing: 12) {
+                            IconView(item: item, size: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name).font(.headline)
+                                Text(item.description)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            if let bytes = item.sizeInBytes {
+                                Text(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            if item.updateAvailable {
+                                Text("Update")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.orange)
+                            }
+                            Text(item.currentVersion)
+                                .font(.monospaced(.caption)())
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                }
-                .frame(width: 180)
-            }
-            .padding()
-
-            List(viewModel.filteredFormulas) { item in
-                HStack {
-                    IconView(item: item, size: 36)
-                    VStack(alignment: .leading) {
-                        Text(item.name).font(.headline)
-                        Text(item.description).font(.subheadline).foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    if let bytes = item.sizeInBytes {
-                        Text(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Text(item.currentVersion).font(.monospaced(.body)())
                 }
             }
         }
@@ -45,83 +51,171 @@ public struct InstalledView: View {
             await viewModel.refresh()
         }
     }
+
+    private var controls: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search installed packages", text: $viewModel.filterState.searchQuery)
+                    .textFieldStyle(.plain)
+                if !viewModel.filterState.searchQuery.isEmpty {
+                    Button {
+                        viewModel.filterState.searchQuery = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(maxWidth: 320)
+
+            Picker("Type", selection: $viewModel.filterState.selectedType) {
+                Text("All").tag(PackageType?.none)
+                Text("Formulas").tag(PackageType?.some(.formula))
+                Text("Casks").tag(PackageType?.some(.cask))
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+
+            Toggle("Updates Only", isOn: $viewModel.filterState.onlyUpdates)
+                .toggleStyle(.checkbox)
+                .fixedSize()
+
+            Spacer()
+
+            Picker("Sort", selection: $viewModel.sortOrder) {
+                ForEach(SortOrderOption.allCases) { option in
+                    Text(option.rawValue).tag(option)
+                }
+            }
+            .frame(width: 170)
+        }
+        .padding()
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if !viewModel.filterState.searchQuery.isEmpty {
+            ContentUnavailableView.search(text: viewModel.filterState.searchQuery)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if viewModel.filterState.onlyUpdates {
+            ContentUnavailableView(
+                "No Updates",
+                systemImage: "checkmark.circle",
+                description: Text("Every installed package is up to date.")
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ContentUnavailableView(
+                "No Packages Installed",
+                systemImage: "shippingbox",
+                description: Text("Install formulas and casks from Discover to see them here.")
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
 }
 
 public struct UpdatesView: View {
     @StateObject private var viewModel = UpdatesViewModel()
     @State private var updateAllPreview: String?
     @State private var isPreviewing = false
+    @State private var message: String?
     @ObservedObject private var brewService = BrewService.shared
 
     public init() {}
 
     public var body: some View {
-        VStack {
-            HStack {
-                Text("\(viewModel.availableUpdates.count) Updates Available")
-                    .font(.title2)
-                    .bold()
-                Spacer()
-                Button(isPreviewing ? "Checking..." : "Update All") {
-                    Task {
-                        isPreviewing = true
-                        if let preview = try? await brewService.dryRunUpgradeAll() {
-                            updateAllPreview = preview
-                        } else {
-                            await viewModel.updateAll()
-                        }
-                        isPreviewing = false
-                    }
-                }
-                .buttonStyle(.glassProminent)
-                .disabled(isPreviewing)
-            }
-            .padding()
-
-            List(viewModel.availableUpdates) { item in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(item.name).font(.headline)
-                        Text("\(item.currentVersion) ➜ \(item.latestVersion ?? "latest")")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Button("Update") {
-                        Task {
-                            await viewModel.updateItem(item)
-                        }
-                    }
-                    .buttonStyle(.glass)
-                }
-            }
-            if let output = updateAllPreview {
-                Text("Preview:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                ScrollView {
-                    Text(output)
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: 120)
-                
-                HStack {
-                    Button("Cancel") {
-                        updateAllPreview = nil
-                    }
-                    .buttonStyle(.glass)
-                    
-                    Button("Confirm Update All") {
-                        updateAllPreview = nil
-                        Task {
-                            try? await brewService.upgradeAll()
-                        }
+        VStack(spacing: 0) {
+            if let error = viewModel.lastCheckError {
+                ContentUnavailableView {
+                    Label("Couldn’t Check for Updates", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(error.localizedDescription)
+                } actions: {
+                    Button("Try Again") {
+                        Task { await viewModel.checkForUpdates() }
                     }
                     .buttonStyle(.glassProminent)
-
                 }
-                .padding(.top, 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.isChecking && viewModel.availableUpdates.isEmpty {
+                ProgressView("Checking for Updates…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.availableUpdates.isEmpty {
+                ContentUnavailableView(
+                    "You’re All Set",
+                    systemImage: "checkmark.circle",
+                    description: Text("All installed packages are up to date.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                header
+                Divider()
+
+                List(viewModel.availableUpdates) { item in
+                    HStack(spacing: 12) {
+                        IconView(item: item, size: 36)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name).font(.headline)
+                            Text("\(item.currentVersion) → \(item.latestVersion ?? "latest")")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button("Update") {
+                            Task { await viewModel.updateItem(item) }
+                        }
+                        .buttonStyle(.glass)
+                    }
+                }
+
+                if let message {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                }
+
+                if let output = updateAllPreview {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Preview")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.secondary)
+
+                        ScrollView {
+                            Text(output)
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxHeight: 120)
+
+                        HStack {
+                            Button("Cancel") {
+                                updateAllPreview = nil
+                            }
+                            .buttonStyle(.glass)
+
+                            Button("Confirm Update All") {
+                                updateAllPreview = nil
+                                Task {
+                                    await viewModel.updateAll()
+                                    message = viewModel.lastCheckError == nil ? "Packages updated." : nil
+                                }
+                            }
+                            .buttonStyle(.glassProminent)
+                        }
+                    }
+                    .padding()
+                }
             }
         }
         .navigationTitle("Updates")
@@ -129,237 +223,43 @@ public struct UpdatesView: View {
             await viewModel.checkForUpdates()
         }
     }
-}
 
-public struct SearchView: View {
-    @StateObject private var viewModel = SearchViewModel()
-    @EnvironmentObject private var searchState: AppSearchState
-
-    public init() {}
-
-    public var body: some View {
-        VStack {
-            HStack {
-                TextField("Search Homebrew formulas & casks...", text: $viewModel.query)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit {
-                        Task { await viewModel.performSearch() }
-                    }
-
-                Button("Search") {
-                    Task { await viewModel.performSearch() }
-                }
-                .buttonStyle(.glass)
-            }
-            .padding()
-
-            if viewModel.isSearching {
-                ProgressView()
-                    .padding()
-            }
-
-            List(viewModel.results) { item in
-                NavigationLink(destination: FormulaDetailView(formula: item)) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(item.name).font(.headline)
-                            Text(item.description).font(.subheadline).foregroundColor(.secondary)
+    private var header: some View {
+        HStack {
+            Text("\(viewModel.availableUpdates.count) Update\(viewModel.availableUpdates.count == 1 ? "" : "s") Available")
+                .font(.title2)
+                .bold()
+            Spacer()
+            Button(isPreviewing ? "Checking…" : "Update All") {
+                Task {
+                    isPreviewing = true
+                    defer { isPreviewing = false }
+                    do {
+                        let preview = try await brewService.dryRunUpgradeAll()
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        if preview.isEmpty {
+                            updateAllPreview = nil
+                            message = "Everything is already up to date."
+                        } else {
+                            updateAllPreview = preview
+                            message = nil
                         }
-                        Spacer()
-                        Text(item.isRemoteSuggestion ? "GitHub" : item.type.displayName)
-                            .font(.caption)
-                            .foregroundColor(item.isRemoteSuggestion ? .secondary : .primary)
+                    } catch {
+                        brewService.report(error)
                     }
                 }
             }
+            .buttonStyle(.glassProminent)
+            .disabled(isPreviewing)
         }
-        .navigationTitle("Search")
-        .onChange(of: searchState.pendingQuery) { _, newValue in
-            guard !newValue.isEmpty else { return }
-            viewModel.query = newValue
-            searchState.pendingQuery = ""
-            Task { await viewModel.performSearch() }
-        }
-        .task {
-            guard !searchState.pendingQuery.isEmpty else { return }
-            viewModel.query = searchState.pendingQuery
-            searchState.pendingQuery = ""
-            await viewModel.performSearch()
-        }
-    }
-}
-
-public struct FormulaDetailView: View {
-    @StateObject private var viewModel: FormulaDetailViewModel
-
-    public init(formula: FormulaItem) {
-        _viewModel = StateObject(wrappedValue: FormulaDetailViewModel(formula: formula))
-    }
-
-    public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Header: icon, title, developer/homepage, install button
-                HStack(alignment: .top, spacing: 16) {
-                    IconView(item: viewModel.formula, size: 80)
-                        .shadow(color: .black.opacity(0.25), radius: 5, y: 3)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(viewModel.formula.fullTitle ?? viewModel.formula.name)
-                            .font(.largeTitle)
-                            .bold()
-                        if let homepage = viewModel.formula.homepage {
-                            Text(homepage)
-                                .font(.subheadline)
-                                .foregroundColor(.accentColor)
-                        }
-                        Text(viewModel.formula.description)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    // GitHub repo-search results aren't verified Homebrew
-                    // formulas/casks — a repo tagged `homebrew-formula` isn't
-                    // guaranteed installable under that exact name, so don't
-                    // offer a false-promise Install button for them.
-                    if viewModel.formula.isRemoteSuggestion {
-                        if let repository = viewModel.formula.repository, let url = URL(string: repository) {
-                            Link("View on GitHub", destination: url)
-                                .buttonStyle(.glass)
-                        }
-                    } else {
-                        if BrewService.shared.installedPackages.contains(where: { $0.id == viewModel.formula.id }) {
-                            Button(viewModel.formula.isPinned ? "Unpin" : "Pin") {
-                                Task {
-                                    if viewModel.formula.isPinned {
-                                        try? await BrewService.shared.unpinFormula(viewModel.formula.name)
-                                    } else {
-                                        try? await BrewService.shared.pinFormula(viewModel.formula.name)
-                                    }
-                                    try? await BrewService.shared.refreshInstalledPackages()
-                                }
-                            }
-                            .buttonStyle(.glass)
-                        }
-
-                        Button(viewModel.formula.updateAvailable ? "Update" : "Install") {
-                            Task { try? await viewModel.install() }
-                        }
-                        .buttonStyle(.glassProminent)
-                    }
-                }
-
-                Divider()
-
-                // Metadata row, mirroring an App Store product page's info strip
-                HStack(spacing: 32) {
-                    metadataColumn(label: "VERSION", value: viewModel.formula.currentVersion.isEmpty ? "—" : viewModel.formula.currentVersion)
-                    metadataColumn(label: "TYPE", value: viewModel.formula.type.displayName)
-                    metadataColumn(label: "LICENSE", value: viewModel.formula.license ?? "Unknown")
-                    if let size = viewModel.formula.sizeInBytes {
-                        metadataColumn(label: "SIZE", value: ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                    }
-                    if let stars = viewModel.githubStars {
-                        metadataColumn(label: "STARS ⭐️", value: "\(stars)")
-                    }
-                    if let publisher = viewModel.githubPublisher {
-                        metadataColumn(label: "PUBLISHER", value: publisher)
-                    }
-                    if let updated = viewModel.githubLastUpdated {
-                        metadataColumn(label: "UPDATED", value: updated.formatted(date: .abbreviated, time: .omitted))
-                    }
-                }
-
-                Divider()
-
-                Text("Description")
-                    .font(.title2)
-                    .bold()
-                
-                if let readme = viewModel.githubReadme {
-                    Text(LocalizedStringKey(readme))
-                        .font(.body)
-                } else {
-                    Text(viewModel.formula.description)
-                        .font(.body)
-                    if viewModel.isFetchingDetails {
-                        ProgressView()
-                            .padding(.top, 8)
-                    }
-                }
-                
-                if let manPage = viewModel.manPage {
-                    Divider()
-                    Text("Manual & Help")
-                        .font(.title2)
-                        .bold()
-                    ScrollView {
-                        Text(manPage)
-                            .font(.system(.caption, design: .monospaced))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                    .frame(height: 250)
-                    .padding(12)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.2), lineWidth: 1))
-                }
-
-                if !viewModel.formula.dependencies.isEmpty {
-                    Divider()
-                    Text("Dependencies")
-                        .font(.title2)
-                        .bold()
-                    ForEach(viewModel.formula.dependencies) { dependency in
-                        HStack {
-                            Image(systemName: "shippingbox")
-                                .foregroundColor(.secondary)
-                            Text(dependency.name)
-                            if dependency.isOptional {
-                                Text("optional")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                if let repository = viewModel.formula.repository {
-                    Divider()
-                    Text("Repository")
-                        .font(.title2)
-                        .bold()
-                    Text(repository)
-                        .font(.body)
-                        .foregroundColor(.accentColor)
-                }
-            }
-            .padding()
-        }
-        .navigationTitle(viewModel.formula.name)
-        .onAppear {
-            viewModel.fetchRichDetailsIfNeeded()
-        }
-    }
-
-    @ViewBuilder
-    private func metadataColumn(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.headline)
-        }
+        .padding()
     }
 }
 
 public struct PreferencesView: View {
-    @StateObject private var viewModel = PreferencesViewModel()
+    @StateObject private var viewModel = PreferencesViewModel.shared
     @ObservedObject private var brewService = BrewService.shared
+    @ObservedObject private var environment = HomebrewEnvironment.shared
 
     @State private var cleanupPreview: String?
     @State private var isPreviewingCleanup = false
@@ -377,9 +277,41 @@ public struct PreferencesView: View {
     public var body: some View {
         Form {
             Section("General") {
-                Toggle("Launch at login", isOn: $viewModel.preferences.launchAtLogin)
+                Toggle("Launch at login", isOn: Binding(
+                    get: { viewModel.preferences.launchAtLogin },
+                    set: { newValue in
+                        do {
+                            try LaunchAtLogin.setEnabled(newValue)
+                            viewModel.preferences.launchAtLogin = newValue
+                        } catch {
+                            viewModel.preferences.launchAtLogin = LaunchAtLogin.isEnabled
+                            brewService.report(error)
+                        }
+                    }
+                ))
                 Toggle("Show menu bar icon", isOn: $viewModel.preferences.showMenuBarIcon)
-                TextField("Homebrew Path", text: $viewModel.preferences.homebrewPrefix)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        TextField("Homebrew Executable", text: $viewModel.preferences.homebrewPrefix)
+                        Button("Detect") {
+                            if let detected = HomebrewPath.locateInstalled() {
+                                viewModel.preferences.homebrewPrefix = detected
+                            } else {
+                                viewModel.preferences.homebrewPrefix = ""
+                            }
+                        }
+                        .buttonStyle(.glass)
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: environment.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(environment.isAvailable ? Color.green : Color.orange)
+                        Text(environment.isAvailable ? "Homebrew is available." : "Homebrew wasn’t found at this path.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             
             Section("Security") {
@@ -393,7 +325,11 @@ public struct PreferencesView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Button("Opt-out of Homebrew Analytics") {
                         Task {
-                            try? await BrewService.shared.setAnalytics(enabled: false)
+                            do {
+                                try await BrewService.shared.setAnalytics(enabled: false)
+                            } catch {
+                                brewService.report(error)
+                            }
                         }
                     }
                     Text("Homebrew sends telemetry by default. Clicking this turns it off entirely via `brew analytics off`.")
@@ -419,9 +355,13 @@ public struct PreferencesView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         Button("Tap") {
                             Task {
-                                try? await BrewService.shared.tap(viewModel.newTapName)
-                                viewModel.newTapName = ""
-                                await viewModel.loadTaps()
+                                do {
+                                    try await BrewService.shared.tap(viewModel.newTapName)
+                                    viewModel.newTapName = ""
+                                    await viewModel.loadTaps()
+                                } catch {
+                                    brewService.report(error)
+                                }
                             }
                         }
                         .buttonStyle(.glass)
@@ -435,8 +375,12 @@ public struct PreferencesView: View {
                                 Spacer()
                                 Button("Untap") {
                                     Task {
-                                        try? await BrewService.shared.untap(tap)
-                                        await viewModel.loadTaps()
+                                        do {
+                                            try await BrewService.shared.untap(tap)
+                                            await viewModel.loadTaps()
+                                        } catch {
+                                            brewService.report(error)
+                                        }
                                     }
                                 }
                                 .buttonStyle(.glassProminent)
@@ -491,8 +435,12 @@ public struct PreferencesView: View {
                         Button(isPreviewingCleanup ? "Checking…" : "Preview") {
                             Task {
                                 isPreviewingCleanup = true
-                                cleanupPreview = try? await brewService.cleanup(dryRun: true)
-                                isPreviewingCleanup = false
+                                defer { isPreviewingCleanup = false }
+                                do {
+                                    cleanupPreview = try await brewService.cleanup(dryRun: true)
+                                } catch {
+                                    brewService.report(error)
+                                }
                             }
                         }
                         .buttonStyle(.glass)
@@ -533,8 +481,12 @@ public struct PreferencesView: View {
                         Button(isPreviewingAutoremove ? "Checking…" : "Preview") {
                             Task {
                                 isPreviewingAutoremove = true
-                                autoremovePreview = try? await brewService.autoremove(dryRun: true)
-                                isPreviewingAutoremove = false
+                                defer { isPreviewingAutoremove = false }
+                                do {
+                                    autoremovePreview = try await brewService.autoremove(dryRun: true)
+                                } catch {
+                                    brewService.report(error)
+                                }
                             }
                         }
                         .buttonStyle(.glass)
@@ -577,10 +529,15 @@ public struct PreferencesView: View {
         .padding()
         .navigationTitle("Preferences")
         .task {
+            viewModel.preferences.launchAtLogin = LaunchAtLogin.isEnabled
+            await environment.refresh()
             await viewModel.loadTaps()
         }
         .onChange(of: viewModel.preferences) { _, _ in
             viewModel.save()
+        }
+        .onChange(of: viewModel.preferences.homebrewPrefix) { _, newValue in
+            Task { await environment.setPath(newValue) }
         }
         .alert("Clean Up Homebrew?", isPresented: $showCleanupConfirmation) {
             Button("Cancel", role: .cancel) {}

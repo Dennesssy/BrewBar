@@ -230,6 +230,20 @@ final class ToolDiscoveryTests: XCTestCase {
         XCTAssertEqual(ToolDiscoveryService.rank(tools, query: "http", limit: 5).first?.name, "http")
     }
 
+    func testSummaryWordPrefixFindsCompressionTools() {
+        let tools = [
+            InstalledTool(name: "gzip", formula: "gzip", version: "1", path: "/p/gzip", summary: "Popular GNU data compression program"),
+            InstalledTool(name: "xz", formula: "xz", version: "1", path: "/p/xz", summary: "General-purpose data compression with high compression ratio"),
+            InstalledTool(name: "zstd", formula: "zstd", version: "1", path: "/p/zstd", summary: "Zstandard is a real-time compression algorithm"),
+            InstalledTool(name: "opj_compress", formula: "openjpeg", version: "1", path: "/p/opj_compress", summary: "Library for JPEG-2000 image manipulation"),
+            InstalledTool(name: "uncompress", formula: "ncompress", version: "1", path: "/p/uncompress", summary: "Decode Lempel-Ziv files"),
+        ]
+
+        let top3 = ToolDiscoveryService.rank(tools, query: "compress", limit: 3).map(\.name)
+        let compressors = top3.filter { ["gzip", "xz", "zstd"].contains($0) }
+        XCTAssertGreaterThanOrEqual(compressors.count, 2)
+    }
+
     // MARK: - Validation (no brew or man involved)
 
     func testDocumentationRejectsUnsafeName() async throws {

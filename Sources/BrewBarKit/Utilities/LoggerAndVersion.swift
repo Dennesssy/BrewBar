@@ -13,7 +13,7 @@ public struct Logger: Sendable {
     public static let shared = Logger()
     private let subsystem: String
 
-    public init(subsystem: String = "com.dennesssy.brewbar") {
+    public init(subsystem: String = AppIdentity.logSubsystem) {
         self.subsystem = subsystem
     }
 

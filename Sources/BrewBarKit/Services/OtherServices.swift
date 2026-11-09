@@ -154,35 +154,42 @@ public final class SearchService: ObservableObject {
         self.isSearching = true
         defer { self.isSearching = false }
 
-        var candidates: [FormulaItem] = []
+        // Search the full Homebrew catalog locally, so results are complete
+        // and instant instead of depending on GitHub's topic search.
+        let catalog = HomebrewCatalogService.shared
+        await catalog.loadIfNeeded()
+        var results = catalog.search(cleanQuery, limit: 80)
 
-        // 1. Local installed packages candidates
-        candidates.append(contentsOf: BrewService.shared.installedPackages)
-
-        // 2. Remote GitHub Search candidates
-        do {
-            let remote = try await githubClient.searchFormulas(query: cleanQuery)
-            let existingIds = Set(candidates.map { $0.id })
-            for item in remote {
-                if !existingIds.contains(item.id) {
-                    candidates.append(item)
-                }
-            }
-        } catch {
-            Logger.shared.error("Remote search error: \(error.localizedDescription)")
+        // Packages from taps or deprecated formulae may not be in the public
+        // catalog; include installed matches that the catalog missed.
+        let knownIds = Set(results.map(\.id))
+        let installedMatches = BrewService.shared.installedPackages.filter { item in
+            guard !knownIds.contains(item.id) else { return false }
+            return item.name.localizedCaseInsensitiveContains(cleanQuery)
+                || item.id.localizedCaseInsensitiveContains(cleanQuery)
+                || item.description.localizedCaseInsensitiveContains(cleanQuery)
+        }
+        if !installedMatches.isEmpty {
+            results.insert(contentsOf: installedMatches, at: 0)
         }
 
-        // Apply type filter if selected
         if let type = filters.selectedType {
-            candidates = candidates.filter { $0.type == type }
+            results = results.filter { $0.type == type }
         }
 
-        // Apply Semantic Lookup and Relevance Ranking
-        let rankedResults = SemanticSearchEngine.searchAndRank(items: candidates, query: cleanQuery)
+        // Only reach for GitHub when the catalog has nothing — it is a
+        // suggestion fallback, not the primary index.
+        if results.isEmpty, cleanQuery.count >= 3 {
+            do {
+                results = try await githubClient.searchFormulas(query: cleanQuery)
+            } catch {
+                Logger.shared.error("Remote search error: \(error.localizedDescription)")
+            }
+        }
 
-        self.searchResults = rankedResults
+        self.searchResults = results
         addToRecentSearches(cleanQuery)
-        return rankedResults
+        return results
     }
 
     private func addToRecentSearches(_ query: String) {

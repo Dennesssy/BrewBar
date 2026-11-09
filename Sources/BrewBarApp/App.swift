@@ -3,12 +3,39 @@
 import SwiftUI
 import BrewBarKit
 
+import Combine
 import CoreSpotlight
+
+/// The menu bar item's visibility, kept apart from `PreferencesViewModel`. If the `App` observed
+/// that model directly, every published preference change would rebuild the whole scene list.
+@MainActor
+final class MenuBarVisibility: ObservableObject {
+    @Published private(set) var isInserted = true
+    private var subscription: AnyCancellable?
+
+    init() {
+        subscription = PreferencesViewModel.shared.$preferences
+            .map(\.showMenuBarIcon)
+            .removeDuplicates()
+            .sink { [weak self] value in
+                guard let self, self.isInserted != value else { return }
+                self.isInserted = value
+            }
+    }
+
+    func set(_ value: Bool) {
+        guard isInserted != value else { return }
+        isInserted = value
+        let preferences = PreferencesViewModel.shared
+        preferences.preferences.showMenuBarIcon = value
+        preferences.save()
+    }
+}
 
 @main
 struct BrewBarApp: App {
     @StateObject private var searchState = AppSearchState()
-    @StateObject private var preferencesViewModel = PreferencesViewModel()
+    @StateObject private var menuBarVisibility = MenuBarVisibility()
 
     var body: some Scene {
         WindowGroup {
@@ -24,8 +51,15 @@ struct BrewBarApp: App {
                     }
                 }
         }
+        .defaultSize(width: 1180, height: 800)
+        .windowToolbarStyle(.unified(showsTitle: false))
+
+        Settings {
+            PreferencesView()
+                .frame(width: 620, height: 640)
+        }
         
-        MenuBarExtra("BrewBar", systemImage: "mug.fill", isInserted: $preferencesViewModel.preferences.showMenuBarIcon) {
+        MenuBarExtra("BrewBar", systemImage: "mug.fill", isInserted: Binding(get: { menuBarVisibility.isInserted }, set: { menuBarVisibility.set($0) })) {
             Button("Open BrewBar") {
                 NSApp.activate(ignoringOtherApps: true)
                 for window in NSApplication.shared.windows {
@@ -35,7 +69,16 @@ struct BrewBarApp: App {
             Divider()
             Button("Check for Updates") {
                 Task {
-                    try? await BrewService.shared.checkForUpdates()
+                    do {
+                        try await BrewService.shared.checkForUpdates()
+                    } catch {
+                        showUpgradeAlert(
+                            message: "Could not check for updates",
+                            info: error.localizedDescription,
+                            style: .warning,
+                            buttons: ["OK"]
+                        )
+                    }
                 }
             }
             Button("Update All Packages") {
@@ -100,7 +143,16 @@ private func confirmAndUpgradeAll() async {
         buttons: ["Upgrade", "Cancel"]
     )
     guard choice == .alertFirstButtonReturn else { return }
-    try? await BrewService.shared.upgradeAll()
+    do {
+        try await BrewService.shared.upgradeAll()
+    } catch {
+        showUpgradeAlert(
+            message: "Upgrade failed",
+            info: error.localizedDescription,
+            style: .warning,
+            buttons: ["OK"]
+        )
+    }
 }
 
 @MainActor
@@ -129,12 +181,21 @@ final class AppSearchState: ObservableObject {
     @Published var pendingQuery: String = ""
 }
 
+/// Sidebar grouping, mirroring the App Store's Browse / Library sections.
+struct SidebarGroup: Identifiable {
+    let title: String
+    let tabs: [ContentView.Tab]
+
+    var id: String { title }
+}
+
 struct ContentView: View {
-    @State private var selectedTab: Tab = .home
+    @State private var selectedTab: Tab = .discover
     @State private var searchQuery: String = ""
     @EnvironmentObject private var searchState: AppSearchState
     @ObservedObject private var brewService = BrewService.shared
     @ObservedObject private var servicesManager = ServicesManager.shared
+    @ObservedObject private var environment = HomebrewEnvironment.shared
 
     enum Tab: String, CaseIterable, Identifiable {
         case discover = "Discover"
@@ -155,11 +216,20 @@ struct ContentView: View {
 
         var id: String { rawValue }
 
-        /// Rows rendered in the sidebar list. `.search` is excluded here —
-        /// like the App Store, search lives in a search field above the
-        /// sidebar list (via `.searchable`), not as its own nav row.
+        /// Rows rendered in the sidebar list. Search lives in the sidebar's
+        /// search field (`.searchable`) and Settings lives in the standard
+        /// Settings scene (⌘,), so neither is a nav row.
         static var sidebarCases: [Tab] {
-            allCases.filter { $0 != .search } // about removed from allCases
+            allCases.filter { $0 != .search && $0 != .settings }
+        }
+
+        static var sidebarGroups: [SidebarGroup] {
+            [
+                SidebarGroup(title: "Browse", tabs: [.discover, .home]),
+                SidebarGroup(title: "Library", tabs: [.installed, .updates]),
+                SidebarGroup(title: "Maintenance", tabs: [.services, .storage, .history, .doctor, .security]),
+                SidebarGroup(title: "Advanced", tabs: [.accounts, .config, .agentTools]),
+            ]
         }
 
         var systemImage: String {
@@ -194,10 +264,16 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             NavigationSplitView {
-                List(Tab.sidebarCases, selection: $selectedTab) { tab in
-                    Label(tab.rawValue, systemImage: tab.systemImage)
-                        .tag(tab)
-                        .badge(badgeCount(for: tab))
+                List(selection: $selectedTab) {
+                    ForEach(Tab.sidebarGroups) { group in
+                        Section(group.title) {
+                            ForEach(group.tabs) { tab in
+                                Label(tab.rawValue, systemImage: tab.systemImage)
+                                    .tag(tab)
+                                    .badge(badgeCount(for: tab))
+                            }
+                        }
+                    }
                 }
                 .navigationTitle("BrewBar")
                 .toolbarBackground(.hidden, for: .windowToolbar)
@@ -244,6 +320,29 @@ struct ContentView: View {
             }
             .hidden()
         )
+        .task {
+            await environment.refresh()
+        }
+        .alert(
+            "Something Went Wrong",
+            isPresented: Binding(
+                get: { brewService.presentedError != nil },
+                set: { isPresented in
+                    if !isPresented { brewService.presentedError = nil }
+                }
+            ),
+            presenting: brewService.presentedError
+        ) { _ in
+            Button("OK", role: .cancel) {
+                brewService.presentedError = nil
+            }
+        } message: { error in
+            Text(
+                [error.errorDescription, error.recoverySuggestion]
+                    .compactMap { $0 }
+                    .joined(separator: "\n\n")
+            )
+        }
     }
 
     /// Real counts only — a badge of 0 renders nothing, so idle rows stay
@@ -262,6 +361,25 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detailView: some View {
+        if selectedTab == .settings {
+            PreferencesView()
+        } else if isCheckingHomebrew {
+            ProgressView("Looking for Homebrew…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if !environment.isAvailable {
+            HomebrewSetupView()
+        } else {
+            tabContent
+        }
+    }
+
+    private var isCheckingHomebrew: Bool {
+        if case .checking = environment.status { return true }
+        return false
+    }
+
+    @ViewBuilder
+    private var tabContent: some View {
         switch selectedTab {
         case .discover:
             DiscoverView()

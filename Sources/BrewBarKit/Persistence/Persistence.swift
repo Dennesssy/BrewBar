@@ -105,7 +105,7 @@ public actor CacheManager {
 
     public init() {
         let paths = fileManager.urls(for: .cachesDirectory, in: .userDomainMask)
-        self.cacheDirectory = paths[0].appendingPathComponent("com.dennesssy.brewbar", isDirectory: true)
+        self.cacheDirectory = paths[0].appendingPathComponent(AppIdentity.cacheDirectoryName, isDirectory: true)
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
@@ -138,6 +138,13 @@ public actor CacheManager {
         }
 
         let fileURL = cacheDirectory.appendingPathComponent(sanitized)
+        return try? Data(contentsOf: fileURL)
+    }
+
+    /// Cache contents regardless of TTL, for offline fallback when a refresh
+    /// fails: stale catalog data is more useful than no catalog at all.
+    public func staleData(forKey key: String) -> Data? {
+        let fileURL = cacheDirectory.appendingPathComponent(sanitizeKey(key))
         return try? Data(contentsOf: fileURL)
     }
 

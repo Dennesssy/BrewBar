@@ -31,3 +31,6 @@ patch_*.py
 .aider*
 .build-agent*/
 .agents/
+
+# Generated icon/artwork scratch
+vibe_images/

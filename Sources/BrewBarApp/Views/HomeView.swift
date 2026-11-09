@@ -5,6 +5,7 @@ import BrewBarKit
 
 public struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @ObservedObject private var catalog = HomebrewCatalogService.shared
 
     public init() {}
 
@@ -15,18 +16,22 @@ public struct HomeView: View {
 
                 ServicesStatusStripView()
 
-                if !viewModel.recentlyUpdated.isEmpty {
-                    PackageCarouselSection(title: "Recently Installed", items: viewModel.recentlyUpdated)
-                }
-
                 if viewModel.isLoading && viewModel.featured.isEmpty {
                     ProgressView("Loading the Homebrew catalog…")
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 40)
+                } else if viewModel.featured.isEmpty {
+                    catalogUnavailableState
                 } else {
+                    if !viewModel.recentlyUpdated.isEmpty {
+                        PackageCarouselSection(title: "Recently Installed", items: viewModel.recentlyUpdated)
+                    }
+
                     PackageCarouselSection(title: "Featured Packages", items: viewModel.featured)
 
-                    PackageCarouselSection(title: "Recommended for You", items: viewModel.recommended)
+                    if !viewModel.recommended.isEmpty {
+                        PackageCarouselSection(title: "Recommended for You", items: viewModel.recommended)
+                    }
                 }
             }
             .padding()
@@ -39,6 +44,23 @@ public struct HomeView: View {
             Task { await ServicesManager.shared.refresh() }
         }
 
+    }
+
+    private var catalogUnavailableState: some View {
+        ContentUnavailableView {
+            Label("Couldn’t Load the Homebrew Catalog", systemImage: "wifi.exclamationmark")
+        } description: {
+            Text("Recommendations need a network connection the first time they load.")
+        } actions: {
+            Button("Try Again") {
+                Task {
+                    await catalog.refresh()
+                    await viewModel.loadData()
+                }
+            }
+            .buttonStyle(.glassProminent)
+        }
+        .frame(maxWidth: .infinity, minHeight: 320)
     }
 }
 
@@ -94,6 +116,8 @@ public struct ServicesStatusStripView: View {
 
 public struct UpdatesBannerView: View {
     @ObservedObject private var brewService = BrewService.shared
+    @State private var showConfirmation = false
+    @State private var isUpdating = false
 
     public init() {}
 
@@ -108,15 +132,32 @@ public struct UpdatesBannerView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                Button("Update All") {
-                    Task {
-                        try? await brewService.upgradeAll()
-                    }
+                Button(isUpdating ? "Updating…" : "Update All") {
+                    showConfirmation = true
                 }
                 .buttonStyle(.glassProminent)
+                .disabled(isUpdating)
             }
             .padding()
             .glassEffect(.regular.tint(Color.accentColor.opacity(0.3)), in: .rect(cornerRadius: 12))
+            .alert("Update All Packages?", isPresented: $showConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Update") {
+                    Task { await updateAll() }
+                }
+            } message: {
+                Text("BrewBar will upgrade all \(brewService.availableUpdates.count) packages with Homebrew.")
+            }
+        }
+    }
+
+    private func updateAll() async {
+        isUpdating = true
+        defer { isUpdating = false }
+        do {
+            try await brewService.upgradeAll()
+        } catch {
+            brewService.report(error)
         }
     }
 }
