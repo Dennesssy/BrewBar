@@ -385,7 +385,7 @@ public struct DiscoverPackageCardView: View {
     let status: PackageInstallStatus
     @State private var isWorking = false
     @State private var isHovered = false
-
+    @State private var showUninstallConfirmation = false
     public var body: some View {
         NavigationLink(destination: FormulaDetailView(formula: item)) {
             VStack(alignment: .leading, spacing: 8) {
@@ -468,18 +468,26 @@ public struct DiscoverPackageCardView: View {
                 }
             } else {
                 Button(role: .destructive) {
-                    Task {
-                        do {
-                            try await BrewService.shared.uninstallFormula(item.id, type: item.type)
-                            AppLauncher.shared.rescan()
-                        } catch {
-                            BrewService.shared.report(error)
-                        }
-                    }
+                    showUninstallConfirmation = true
                 } label: {
                     Label("Uninstall", systemImage: "trash")
                 }
             }
+        }
+        .alert("Uninstall \(item.name)?", isPresented: $showUninstallConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Uninstall", role: .destructive) {
+                Task {
+                    do {
+                        try await BrewService.shared.uninstallFormula(item.id, type: item.type)
+                        AppLauncher.shared.rescan()
+                    } catch {
+                        BrewService.shared.report(error)
+                    }
+                }
+            }
+        } message: {
+            Text("This removes the package from your Mac. You can reinstall it from Discover at any time.")
         }
     }
 
