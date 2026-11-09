@@ -174,11 +174,13 @@ public final class SearchViewModel: ObservableObject {
 
     private func performSearch(for cleanQuery: String) async {
         let searchResults = await searchService.search(cleanQuery, filters: filterState)
+        // A cancelled or superseded search leaves `isSearching` to its
+        // successor; only the live task clears the spinner.
         guard !Task.isCancelled else { return }
         guard query.trimmingCharacters(in: .whitespacesAndNewlines) == cleanQuery else { return }
+        isSearching = false
         results = searchResults
         hasSearched = true
-        isSearching = false
     }
 }
 
