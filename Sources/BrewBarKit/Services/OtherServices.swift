@@ -106,28 +106,18 @@ public final class ServicesManager: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).servicesAction(action, formula: name)
         let commandArgs = builder.buildArguments()
 
-        let brewService = BrewService.shared
-        brewService.activeTaskCommand = ([builder.executablePath] + commandArgs).joined(separator: " ")
-        brewService.activeTaskConsoleOutput = ""
-        brewService.activeTaskMessage = "\(action.rawValue.capitalized)ing service \(name)..."
-
         do {
-            let output = try await processManager.execute(
-                executablePath: builder.executablePath, 
-                arguments: commandArgs, 
+            let output = try await BrewService.shared.runTask(
+                executablePath: builder.executablePath,
+                arguments: commandArgs,
                 timeout: 60,
-                outputHandler: { out in
-                    Task { @MainActor in
-                        brewService.activeTaskConsoleOutput += out
-                    }
-                }
+                defaultMessage: "\(action.rawValue.capitalized)ing service \(name)..."
             )
             self.lastError = nil
             HistoryStore.shared.log(packageName: name, packageType: "service", action: "service \(action.rawValue)", details: output)
         } catch {
             self.lastError = errorHandler.handle(error)
         }
-        brewService.activeTaskMessage = nil
         await refresh()
     }
 }

@@ -61,6 +61,13 @@ public struct BrewCommandBuilder: Sendable {
         return copy
     }
 
+    /// `brew tap` with no arguments lists all installed taps.
+    public func tapList() -> BrewCommandBuilder {
+        var copy = self
+        copy.subcommand = "tap"
+        return copy
+    }
+
     public func untap(_ tap: String) -> BrewCommandBuilder {
         var copy = self
         copy.subcommand = "untap"

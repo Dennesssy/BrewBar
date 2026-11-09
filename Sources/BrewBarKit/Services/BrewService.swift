@@ -45,6 +45,38 @@ public final class BrewService: ObservableObject {
         await taskProcessManager.cancel()
     }
 
+    /// Runs a user-initiated brew command through the cancellable task
+    /// manager with live console output — the same path install/upgrade use,
+    /// so the TaskConsole's Cancel button actually reaches the process.
+    /// Callers that need a custom message pass `defaultMessage`; "==>" lines
+    /// in brew's output override it as the task progresses.
+    public func runTask(
+        executablePath: String,
+        arguments: [String],
+        timeout: TimeInterval = 300,
+        allowNonZeroExit: Bool = false,
+        extraEnvironment: [String: String]? = nil,
+        defaultMessage: String
+    ) async throws -> String {
+        activeTaskCommand = ([executablePath] + arguments).joined(separator: " ")
+        activeTaskConsoleOutput = ""
+        activeTaskMessage = defaultMessage
+        defer { Task { @MainActor in resetProgress() } }
+        return try await taskProcessManager.execute(
+            executablePath: executablePath,
+            arguments: arguments,
+            timeout: timeout,
+            allowNonZeroExit: allowNonZeroExit,
+            extraEnvironment: extraEnvironment,
+            outputHandler: { [weak self] out in
+                Task { @MainActor in
+                    self?.activeTaskConsoleOutput += out
+                    self?.parseProgressOutput(out, defaultMessage: defaultMessage)
+                }
+            }
+        )
+    }
+
     public func report(_ error: Error) {
         presentedError = errorHandler.handle(error)
     }
@@ -100,10 +132,11 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).autoremove(dryRun: dryRun)
         
         do {
-            let output = try await processManager.execute(
+            let output = try await runTask(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 120
+                timeout: 120,
+                defaultMessage: dryRun ? "Checking for orphaned packages…" : "Autoremoving packages…"
             )
             self.lastError = nil
             if !dryRun {
@@ -207,15 +240,12 @@ public final class BrewService: ObservableObject {
 
     public func listTaps() async throws -> [String] {
         let prefs = await LocalStorageManager.shared.loadPreferences()
-        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).tap("")
-        // Without args, tap lists all installed taps
-        var args = builder.buildArguments()
-        if args.last == "" { args.removeLast() }
-        
+        let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).tapList()
+
         do {
             let output = try await processManager.execute(
                 executablePath: builder.executablePath,
-                arguments: args,
+                arguments: builder.buildArguments(),
                 timeout: 30,
                 extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
             )
@@ -384,7 +414,7 @@ public final class BrewService: ObservableObject {
 
             if !sizes.isEmpty {
                 packages = packages.map { item in
-                    guard let bytes = sizes[item.id] else { return item }
+                    guard let bytes = sizes["\(item.type.rawValue):\(item.id)"] else { return item }
                     return FormulaItem(
                         id: item.id,
                         name: item.name,
@@ -433,7 +463,9 @@ public final class BrewService: ObservableObject {
         // call site.
         let resolvedBrewPath = BrewCommandBuilder(brewPath: brewPath).executablePath
 
-        for flag in ["--cellar", "--caskroom"] {
+        // Prefix keys by package kind: a formula and a cask can share a name
+        // (e.g. `cmake`), and an unprefixed basename would collide.
+        for (flag, prefix) in [("--cellar", "formula:"), ("--caskroom", "cask:")] {
             guard let dirPath = try? await processManager.execute(executablePath: resolvedBrewPath, arguments: [flag]) else {
                 continue
             }
@@ -443,15 +475,22 @@ public final class BrewService: ObservableObject {
             }
 
             let fullPaths = entries.map { "\(trimmedPath)/\($0)" }
-            guard let duOutput = try? await processManager.execute(executablePath: "/usr/bin/du", arguments: ["-sk"] + fullPaths) else {
-                continue
-            }
+            // Chunk the argument list: a few hundred Cellar entries can exceed
+            // ARG_MAX in a single `du` invocation, which would fail silently
+            // and drop every size.
+            let chunkSize = 200
+            for start in stride(from: 0, to: fullPaths.count, by: chunkSize) {
+                let chunk = Array(fullPaths[start..<min(start + chunkSize, fullPaths.count)])
+                guard let duOutput = try? await processManager.execute(executablePath: "/usr/bin/du", arguments: ["-sk"] + chunk) else {
+                    continue
+                }
 
-            for line in duOutput.split(separator: "\n") {
-                let parts = line.split(separator: "\t")
-                guard parts.count == 2, let kilobytes = UInt64(parts[0]) else { continue }
-                let name = String(parts[1].split(separator: "/").last ?? "")
-                sizes[name] = kilobytes * 1024
+                for line in duOutput.split(separator: "\n") {
+                    let parts = line.split(separator: "\t")
+                    guard parts.count == 2, let kilobytes = UInt64(parts[0]) else { continue }
+                    let name = String(parts[1].split(separator: "/").last ?? "")
+                    sizes["\(prefix)\(name)"] = kilobytes * 1024
+                }
             }
         }
 
@@ -468,7 +507,12 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).update()
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let output = try await runTask(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 300,
+                defaultMessage: "Updating Homebrew…"
+            )
             let (newFormulae, newCasks) = Self.parseNewPackages(from: output)
             self.newFormulaNames = newFormulae
             self.newCaskNames = newCasks
@@ -496,7 +540,12 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).cleanup(dryRun: dryRun)
 
         do {
-            let output = try await processManager.execute(executablePath: builder.executablePath, arguments: builder.buildArguments(), timeout: 120)
+            let output = try await runTask(
+                executablePath: builder.executablePath,
+                arguments: builder.buildArguments(),
+                timeout: 300,
+                defaultMessage: dryRun ? "Checking what can be cleaned…" : "Cleaning up Homebrew…"
+            )
             self.lastError = nil
             if !dryRun {
                 invalidateInstalledSizeCache()
@@ -542,12 +591,13 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).doctor(json: true)
 
         do {
-            let output = try await processManager.execute(
+            let output = try await runTask(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 120,
+                timeout: 300,
                 allowNonZeroExit: true,
-                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"],
+                defaultMessage: "Running brew doctor…"
             )
             self.lastError = nil
             return outputParser.parseDoctor(output)
@@ -564,11 +614,12 @@ public final class BrewService: ObservableObject {
         let builder = BrewCommandBuilder(brewPath: prefs.homebrewPrefix).upgrade(dryRun: true)
         
         do {
-            let output = try await processManager.execute(
+            let output = try await runTask(
                 executablePath: builder.executablePath,
                 arguments: builder.buildArguments(),
-                timeout: 30,
-                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"]
+                timeout: 120,
+                extraEnvironment: ["HOMEBREW_NO_AUTO_UPDATE": "1"],
+                defaultMessage: "Checking for available upgrades…"
             )
             return output
         } catch {
