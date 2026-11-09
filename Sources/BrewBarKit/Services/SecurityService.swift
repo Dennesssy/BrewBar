@@ -116,7 +116,10 @@ public final class SecurityService: ObservableObject {
     }
 
     public func upgradePackage(_ name: String) async throws {
-        let item = FormulaItem(id: name, name: name, description: "", currentVersion: "", type: .formula)
+        // Vulnerable packages can be casks too — `brew upgrade --formula <cask>`
+        // fails, so resolve the real type from the installed list first.
+        let installed = BrewService.shared.installedPackages.first { $0.id == name || $0.name == name }
+        let item = FormulaItem(id: name, name: name, description: "", currentVersion: "", type: installed?.type ?? .formula)
         try await PackageService.shared.upgradePackage(item)
     }
 
