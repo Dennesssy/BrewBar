@@ -68,6 +68,73 @@ private final class ProcessOutputBox: @unchecked Sendable {
     }
 }
 
+/// Incremental UTF-8 decoder for pipe chunks. A multibyte character can be
+/// split across `readabilityHandler` callbacks; `String(data:encoding:)`
+/// returns nil for a partial sequence, which silently dropped those bytes
+/// from streamed console output. Buffers the incomplete tail until the rest
+/// arrives.
+private final class UTF8ChunkDecoder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pending = Data()
+
+    /// Appends `data` and returns the decodable string, holding back any
+    /// trailing bytes that form an incomplete UTF-8 sequence.
+    func decode(_ data: Data) -> String? {
+        lock.lock()
+        pending.append(data)
+        let safeLength = Self.utf8SafePrefixLength(pending)
+        guard safeLength > 0 else {
+            // Nothing decodable yet — but don't buffer forever if the stream
+            // is genuinely not UTF-8.
+            if pending.count > 64 {
+                let lossy = String(decoding: pending, as: UTF8.self)
+                pending.removeAll(keepingCapacity: true)
+                lock.unlock()
+                return lossy
+            }
+            lock.unlock()
+            return nil
+        }
+        let chunk = pending.prefix(safeLength)
+        pending.removeFirst(safeLength)
+        lock.unlock()
+        return String(decoding: chunk, as: UTF8.self)
+    }
+
+    /// Length of the longest prefix that ends on a UTF-8 sequence boundary.
+    /// An incomplete trailing sequence (lead byte expecting more continuation
+    /// bytes than remain) is excluded.
+    private static func utf8SafePrefixLength(_ data: Data) -> Int {
+        var i = data.startIndex
+        var lastBoundary = data.startIndex
+        while i < data.endIndex {
+            let byte = data[i]
+            let length: Int
+            if byte < 0x80 {
+                length = 1
+            } else if byte & 0xE0 == 0xC0 {
+                length = 2
+            } else if byte & 0xF0 == 0xE0 {
+                length = 3
+            } else if byte & 0xF8 == 0xF0 {
+                length = 4
+            } else {
+                // Invalid lead byte: step over it so it decodes as U+FFFD
+                // instead of stalling the buffer.
+                lastBoundary = data.index(after: i)
+                i = lastBoundary
+                continue
+            }
+            // nil means the sequence runs past the buffer end — an incomplete
+            // tail split across chunks; hold it for the next decode.
+            guard let end = data.index(i, offsetBy: length, limitedBy: data.endIndex) else { break }
+            lastBoundary = end
+            i = end
+        }
+        return data.distance(from: data.startIndex, to: lastBoundary)
+    }
+}
+
 public actor ProcessManager {
     /// Every process this manager has launched and not yet seen terminate.
     /// execute() is reentrant, so several can be in flight at once.
@@ -171,12 +238,14 @@ public actor ProcessManager {
             process.standardInput = FileHandle.nullDevice
 
             let box = ProcessOutputBox()
+            let outputDecoder = UTF8ChunkDecoder()
+            let errorDecoder = UTF8ChunkDecoder()
 
             outputPipe.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
                 if !data.isEmpty {
                     box.appendOutput(data)
-                    if let handler = outputHandler, let str = String(data: data, encoding: .utf8) {
+                    if let handler = outputHandler, let str = outputDecoder.decode(data) {
                         handler(str)
                     }
                 }
@@ -186,7 +255,7 @@ public actor ProcessManager {
                 let data = handle.availableData
                 if !data.isEmpty {
                     box.appendError(data)
-                    if let handler = outputHandler, let str = String(data: data, encoding: .utf8) {
+                    if let handler = outputHandler, let str = errorDecoder.decode(data) {
                         handler(str)
                     }
                 }
@@ -224,18 +293,29 @@ public actor ProcessManager {
                 outputPipe.fileHandleForReading.readabilityHandler = nil
                 errorPipe.fileHandleForReading.readabilityHandler = nil
 
-                // Best-effort, non-blocking grab of any already-buffered final
-                // chunk. Deliberately NOT readDataToEndOfFile(): if a background
-                // grandchild inherited the pipe's write end (e.g. `sleep 300 &`),
-                // that call blocks until every holder closes it, hanging this
-                // handler indefinitely even though our process already exited.
-                let remainingOutput = outputPipe.fileHandleForReading.availableData
+                // Best-effort drain of everything the kernel has buffered.
+                // `availableData` is non-blocking — it returns empty at EOF
+                // or when a background grandchild still holds the write end
+                // without producing data — so looping it can't hang the way
+                // readDataToEndOfFile() would. Nil-ing the readability
+                // handlers first drops callbacks still queued on their
+                // private queues; draining here is what recovers that tail.
+                let remainingOutput = ProcessManager.drainAvailableData(from: outputPipe.fileHandleForReading)
                 if !remainingOutput.isEmpty {
                     box.appendOutput(remainingOutput)
                 }
-                let remainingError = errorPipe.fileHandleForReading.availableData
+                let remainingError = ProcessManager.drainAvailableData(from: errorPipe.fileHandleForReading)
                 if !remainingError.isEmpty {
                     box.appendError(remainingError)
+                }
+
+                // Stream the drained tail (plus any decoder-held bytes) to the
+                // live console before reporting the result.
+                if let handler = outputHandler {
+                    if let str = outputDecoder.decode(remainingOutput), !str.isEmpty { handler(str) }
+                    if let str = errorDecoder.decode(remainingError), !str.isEmpty { handler(str) }
+                    if let str = outputDecoder.decode(Data()), !str.isEmpty { handler(str) }
+                    if let str = errorDecoder.decode(Data()), !str.isEmpty { handler(str) }
                 }
 
                 let (finalOutput, finalError) = box.snapshot()
@@ -283,6 +363,22 @@ public actor ProcessManager {
                 continuation.resume(throwing: BrewBarError.commandFailed(command: command, error: error.localizedDescription))
             }
         }
+    }
+
+    /// Reads every byte currently buffered on a pipe without blocking.
+    /// `availableData` returns an empty `Data` at EOF and when no data is
+    /// ready, so the loop terminates as soon as the kernel buffer is empty —
+    /// even if a backgrounded grandchild still holds the write end open.
+    private static func drainAvailableData(from handle: FileHandle) -> Data {
+        var all = Data()
+        // Cap iterations defensively; each pass can return up to the pipe
+        // buffer size, so this still covers multi-MB tails.
+        for _ in 0..<10_000 {
+            let chunk = handle.availableData
+            if chunk.isEmpty { break }
+            all.append(chunk)
+        }
+        return all
     }
 
     private func unregister(_ key: ObjectIdentifier) {
