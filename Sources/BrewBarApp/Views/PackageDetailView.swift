@@ -197,8 +197,11 @@ public struct FormulaDetailView: View {
     private var moreMenu: some View {
         Menu {
             if isInstalled {
-                Button(installedItem?.isPinned == true ? "Unpin" : "Pin") {
-                    Task { await togglePin() }
+                // `brew pin` only works on formulae — casks have no pin support.
+                if formula.type == .formula {
+                    Button(installedItem?.isPinned == true ? "Unpin" : "Pin") {
+                        Task { await togglePin() }
+                    }
                 }
                 Button("Uninstall…", role: .destructive) {
                     showUninstallConfirmation = true
@@ -494,9 +497,9 @@ public struct FormulaDetailView: View {
     private func togglePin() async {
         do {
             if installedItem?.isPinned == true {
-                try await brewService.unpinFormula(formula.name)
+                try await brewService.unpinFormula(formula.id)
             } else {
-                try await brewService.pinFormula(formula.name)
+                try await brewService.pinFormula(formula.id)
             }
         } catch {
             brewService.report(error)
